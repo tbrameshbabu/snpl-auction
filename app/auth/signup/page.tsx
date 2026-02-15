@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Trophy, User, Users, Gavel } from 'lucide-react'
+import { Trophy, User, Users } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SignupPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'player' | 'team_owner' | 'auctioneer'>('player')
+  const [role, setRole] = useState<'player' | 'team_owner'>('player')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -43,8 +43,6 @@ export default function SignupPage() {
         router.push('/player/register')
       } else if (role === 'team_owner') {
         router.push('/team-owner/dashboard')
-      } else if (role === 'auctioneer') {
-        router.push('/auctioneer/register')
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred')
@@ -123,17 +121,6 @@ export default function SignupPage() {
                     <div>
                       <div className="font-medium">Team Owner</div>
                       <div className="text-xs text-muted-foreground">Build your team through auctions</div>
-                    </div>
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
-                  <RadioGroupItem value="auctioneer" id="auctioneer" />
-                  <Label htmlFor="auctioneer" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <Gavel className="h-4 w-4" />
-                    <div>
-                      <div className="font-medium">Auctioneer</div>
-                      <div className="text-xs text-muted-foreground">Organize and conduct auctions</div>
                     </div>
                   </Label>
                 </div>

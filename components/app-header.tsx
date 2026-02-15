@@ -11,7 +11,7 @@ export function AppHeader() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.push("/");
+    window.location.href = "/";
   };
 
   const getRoleBadgeColor = (userRole: string | null) => {
