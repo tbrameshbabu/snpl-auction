@@ -4,10 +4,21 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { AppHeader } from '@/components/app-header'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Calendar, Users } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  Loader2,
+  Plus,
+  Calendar,
+  Users,
+  Trophy,
+  Zap,
+  Star,
+  ChevronRight,
+  Clock,
+  Wallet,
+  ArrowLeft,
+} from 'lucide-react'
 
 interface Tournament {
   id: string
@@ -26,6 +37,7 @@ export default function AuctioneerTournamentsPage() {
   const { user, role, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(true)
   const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -46,7 +58,9 @@ export default function AuctioneerTournamentsPage() {
           return
         }
 
-        setTournaments(data.tournaments || [])
+        const fetched = data.tournaments || []
+        setTournaments(fetched)
+        if (fetched.length > 0) setExpandedId(fetched[0].id)
         setLoading(false)
       } catch (err: any) {
         setError(err.message || 'An error occurred')
@@ -59,113 +73,268 @@ export default function AuctioneerTournamentsPage() {
     }
   }, [user, role])
 
-  const getStatusBadge = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return <Badge variant="outline">Draft</Badge>
-      case 'published':
-        return <Badge className="bg-blue-600">Published</Badge>
-      case 'live':
-        return <Badge className="bg-green-600">Live</Badge>
-      case 'completed':
-        return <Badge variant="secondary">Completed</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
+      case 'published': return 'text-neon'
+      case 'live': return 'text-destructive'
+      case 'completed': return 'text-muted-foreground'
+      case 'draft': return 'text-gold'
+      default: return 'text-gold'
     }
   }
+
+  const getStatusBg = (status: string) => {
+    switch (status) {
+      case 'published': return 'bg-neon/15'
+      case 'live': return 'bg-destructive/15'
+      case 'completed': return 'bg-secondary'
+      case 'draft': return 'bg-gold/15'
+      default: return 'bg-gold/15'
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'published': return 'Open'
+      case 'live': return 'Live'
+      case 'completed': return 'Done'
+      case 'draft': return 'Draft'
+      default: return status
+    }
+  }
+
+  const draftCount = tournaments.filter(t => t.status === 'draft').length
+  const publishedCount = tournaments.filter(t => t.status === 'published').length
+  const liveCount = tournaments.filter(t => t.status === 'live').length
 
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Unified App Header */}
+    <div className="min-h-screen pb-24">
       <AppHeader />
 
-      <div className="max-w-6xl mx-auto space-y-6 p-4 py-6">
-        {/* Page Title */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">My Tournaments</h1>
-            <p className="text-gray-400 mt-1">Manage your cricket auction tournaments</p>
+      {/* Header */}
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--gold)/0.08),transparent_60%)]" />
+        <div className="relative px-5 pt-6 pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              type="button"
+              onClick={() => router.push('/auctioneer/dashboard')}
+              className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">
+                My Tournaments
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Manage your cricket auction tournaments
+              </p>
+            </div>
           </div>
-          <Button onClick={() => router.push('/auctioneer/tournaments/create')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Tournament
-          </Button>
         </div>
+      </header>
 
-        {/* Error Message */}
-        {error && (
-          <Card className="border-red-500">
-            <CardContent className="p-6">
-              <p className="text-red-500">{error}</p>
-            </CardContent>
-          </Card>
-        )}
+      {/* Quick Stats */}
+      <section className="px-5 py-4" aria-label="Tournament summary">
+        <div className="grid grid-cols-4 gap-2">
+          <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
+            <Trophy className="h-4 w-4 text-gold" />
+            <span className="text-lg font-bold text-foreground">
+              {tournaments.length}
+            </span>
+            <span className="text-[10px] text-muted-foreground">Total</span>
+          </div>
+          <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
+            <Star className="h-4 w-4 text-gold" />
+            <span className="text-lg font-bold text-gold">
+              {draftCount}
+            </span>
+            <span className="text-[10px] text-muted-foreground">Draft</span>
+          </div>
+          <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
+            <Zap className="h-4 w-4 text-neon" />
+            <span className="text-lg font-bold text-neon">
+              {publishedCount}
+            </span>
+            <span className="text-[10px] text-muted-foreground">Open</span>
+          </div>
+          <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
+            <Zap className="h-4 w-4 text-destructive" />
+            <span className="text-lg font-bold text-destructive">
+              {liveCount}
+            </span>
+            <span className="text-[10px] text-muted-foreground">Live</span>
+          </div>
+        </div>
+      </section>
 
-        {/* Tournaments List */}
+      {/* Create Button */}
+      <div className="px-5 mb-4">
+        <Button
+          size="lg"
+          onClick={() => router.push('/auctioneer/tournaments/create')}
+          className="w-full bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
+        >
+          <Plus className="h-4 w-4 mr-1.5" />
+          Create New Tournament
+        </Button>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="px-5 mb-3">
+          <div className="glass rounded-xl p-4 border border-destructive/20">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Section Heading */}
+      <div className="px-5 mb-3">
+        <h2 className="text-lg font-bold text-foreground">
+          All Tournaments
+        </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Tap on a tournament to view details
+        </p>
+      </div>
+
+      {/* Tournament List */}
+      <section className="px-5 flex flex-col gap-3" aria-label="Tournaments">
         {tournaments.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center">
-                  <Calendar className="h-8 w-8 text-gray-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">No tournaments yet</h3>
-                  <p className="text-gray-500 mb-4">Create your first tournament to get started</p>
-                  <Button onClick={() => router.push('/auctioneer/tournaments/create')}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Tournament
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="glass rounded-xl p-8 text-center">
+            <Trophy className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              No Tournaments Yet
+            </h3>
+            <p className="text-xs text-muted-foreground/70 mt-1 mb-4">
+              Create your first tournament to get started
+            </p>
+            <Button
+              onClick={() => router.push('/auctioneer/tournaments/create')}
+              className="bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Create Tournament
+            </Button>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {tournaments.map((tournament) => (
-              <Card
+          tournaments.map((tournament) => {
+            const isExpanded = expandedId === tournament.id
+            const auctionDate = new Date(tournament.auction_date)
+
+            return (
+              <div
                 key={tournament.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => router.push(`/auctioneer/tournaments/${tournament.id}`)}
+                className="glass rounded-xl overflow-hidden transition-all duration-300"
               >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="mb-2">{tournament.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {tournament.description || 'No description'}
-                      </CardDescription>
-                    </div>
-                    {getStatusBadge(tournament.status)}
+                {/* Card Header */}
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isExpanded ? null : tournament.id)}
+                  className="w-full p-4 flex items-center gap-3 text-left"
+                >
+                  <div className="h-11 w-11 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
+                    <Trophy className="h-5 w-5 text-gold" />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span>
-                        {new Date(tournament.auction_date).toLocaleDateString()} at {tournament.auction_time}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground truncate">
+                        {tournament.title}
+                      </h3>
+                      <span
+                        className={cn(
+                          "px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0",
+                          getStatusBg(tournament.status),
+                          getStatusColor(tournament.status)
+                        )}
+                      >
+                        {getStatusLabel(tournament.status)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>{tournament.num_teams} teams · {tournament.budget_per_team} pts budget</span>
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {tournament.auction_time && ` at ${tournament.auction_time}`}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <ChevronRight
+                    className={cn(
+                      "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
+                      isExpanded && "rotate-90"
+                    )}
+                  />
+                </button>
+
+                {/* Expanded Details */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 animate-slide-in-right">
+                    {tournament.description && (
+                      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                        {tournament.description}
+                      </p>
+                    )}
+
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gold shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Date</p>
+                          <p className="text-sm font-bold text-foreground">
+                            {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gold shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Time</p>
+                          <p className="text-sm font-bold text-foreground">
+                            {tournament.auction_time || '—'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gold shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Teams</p>
+                          <p className="text-sm font-bold text-foreground">{tournament.num_teams}</p>
+                        </div>
+                      </div>
+                      <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-gold shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Budget</p>
+                          <p className="text-sm font-bold text-foreground">{tournament.budget_per_team} pts</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Manage Button */}
+                    <Button
+                      size="lg"
+                      onClick={() => router.push(`/auctioneer/tournaments/${tournament.id}`)}
+                      className="w-full bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
+                    >
+                      <ChevronRight className="h-4 w-4 mr-1.5" />
+                      Manage Tournament
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )
+          })
         )}
-      </div>
+      </section>
     </div>
   )
 }

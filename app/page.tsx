@@ -64,10 +64,10 @@ export default function Page() {
         <DashboardScreen onNavigate={handleNavigate} />
       )}
       {activeScreen === "bidding" && (
-        <BiddingScreen onNavigate={handleNavigate} />
+        <BiddingScreen tournamentId="demo" onNavigate={handleNavigate} />
       )}
       {activeScreen === "results" && (
-        <ResultsScreen onNavigate={handleNavigate} />
+        <ResultsScreen tournamentId="demo" onNavigate={handleNavigate} />
       )}
       <BottomNav activeScreen={activeScreen} onNavigate={handleNavigate} />
     </main>

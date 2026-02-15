@@ -3,10 +3,18 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Loader2, ArrowLeft, Users, Trophy } from 'lucide-react'
+import { AppHeader } from '@/components/app-header'
+import { cn } from '@/lib/utils'
+import {
+  Loader2,
+  ArrowLeft,
+  Users,
+  Trophy,
+  Zap,
+  Star,
+  User,
+} from 'lucide-react'
 
 interface Player {
   id: string
@@ -44,7 +52,6 @@ export default function TournamentPlayersPage({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch tournament details
         const tournamentRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}`)
         const tournamentData = await tournamentRes.json()
 
@@ -56,7 +63,6 @@ export default function TournamentPlayersPage({
 
         setTournament(tournamentData.tournament)
 
-        // Fetch players interested in this tournament
         const playersRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}/players`)
         const playersData = await playersRes.json()
 
@@ -74,135 +80,200 @@ export default function TournamentPlayersPage({
     fetchData()
   }, [tournamentId])
 
+  const getRoleBadge = (playerRole: string) => {
+    const roles: Record<string, { bg: string; text: string; label: string }> = {
+      batsman: { bg: 'bg-gold/15', text: 'text-gold', label: 'Batsman' },
+      bowler: { bg: 'bg-neon/15', text: 'text-neon', label: 'Bowler' },
+      all_rounder: { bg: 'bg-gold/15', text: 'text-gold', label: 'All-Rounder' },
+      wicket_keeper: { bg: 'bg-neon/15', text: 'text-neon', label: 'WK' },
+    }
+    const r = roles[playerRole] || { bg: 'bg-secondary', text: 'text-muted-foreground', label: playerRole }
+    return (
+      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${r.bg} ${r.text}`}>
+        {r.label}
+      </span>
+    )
+  }
+
+  const interestedCount = players.filter(p => p.interest_status === 'interested').length
+  const withdrawnCount = players.filter(p => p.interest_status === 'withdrawn').length
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
     )
   }
 
   if (error || !tournament) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-red-500">{error || 'Tournament not found'}</p>
-              <Button onClick={() => router.push('/auctioneer/tournaments')} className="mt-4">
-                Back to Tournaments
-              </Button>
-            </CardContent>
-          </Card>
+      <div className="min-h-screen p-5">
+        <div className="glass rounded-xl p-6 max-w-md mx-auto mt-20">
+          <p className="text-red-400 mb-4">{error || 'Tournament not found'}</p>
+          <Button onClick={() => router.push('/auctioneer/tournaments')} className="w-full">
+            Back to Tournaments
+          </Button>
         </div>
       </div>
     )
   }
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'batsman': return 'bg-blue-500'
-      case 'bowler': return 'bg-green-500'
-      case 'all_rounder': return 'bg-purple-500'
-      case 'wicket_keeper': return 'bg-orange-500'
-      default: return 'bg-gray-500'
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}`)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-white">{tournament.title}</h1>
-            <p className="text-gray-400 text-sm">Player Pool</p>
+    <div className="min-h-screen pb-24">
+      <AppHeader />
+
+      {/* Header */}
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--gold)/0.08),transparent_60%)]" />
+        <div className="relative px-5 pt-6 pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              type="button"
+              onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}`)}
+              className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">
+                {tournament.title}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Player Pool
+              </p>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Players List */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Interested Players</CardTitle>
-                <CardDescription>
-                  {players.length} players have shown interest in this tournament
-                </CardDescription>
-              </div>
-              <Badge variant="outline">
-                <Users className="h-4 w-4 mr-1" />
-                {players.length} Players
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {players.length === 0 ? (
-              <div className="text-center py-12">
-                <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No players interested yet</p>
-                <p className="text-sm text-gray-600 mt-2">
-                  Players will appear here once they show interest in this tournament
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {players.map((player) => (
-                  <div
-                    key={player.id}
-                    className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent"
-                  >
-                    {player.profile_image_url ? (
-                      <img
-                        src={player.profile_image_url}
-                        alt={player.name}
-                        className="h-16 w-16 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                        <Users className="h-8 w-8 text-white" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold truncate">{player.name}</h3>
-                        <Badge className={getRoleBadgeColor(player.role)}>
-                          {player.role.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mt-2">
-                        <div>
-                          <span className="font-medium">Base Points:</span> {player.base_points}
-                        </div>
-                        <div>
-                          <span className="font-medium">Matches:</span> {player.matches_played}
-                        </div>
-                        <div>
-                          <span className="font-medium">Runs:</span> {player.runs_scored}
-                        </div>
-                        <div>
-                          <span className="font-medium">Wickets:</span> {player.wickets_taken}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-2 text-xs">
-                        <Badge variant="outline">Bat: {player.batting_hand}</Badge>
-                        <Badge variant="outline">Bowl: {player.bowling_hand}</Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Quick Stats */}
+      <section className="px-5 py-4" aria-label="Player summary">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
+            <Users className="h-4 w-4 text-gold" />
+            <span className="text-lg font-bold text-foreground">
+              {players.length}
+            </span>
+            <span className="text-[10px] text-muted-foreground">Total</span>
+          </div>
+          <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
+            <Zap className="h-4 w-4 text-neon" />
+            <span className="text-lg font-bold text-neon">
+              {interestedCount}
+            </span>
+            <span className="text-[10px] text-muted-foreground">Interested</span>
+          </div>
+          <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
+            <Star className="h-4 w-4 text-destructive" />
+            <span className="text-lg font-bold text-destructive">
+              {withdrawnCount}
+            </span>
+            <span className="text-[10px] text-muted-foreground">Withdrawn</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Heading */}
+      <div className="px-5 mb-3">
+        <h2 className="text-lg font-bold text-foreground">
+          Players ({players.length})
+        </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Players who have shown interest in this tournament
+        </p>
       </div>
+
+      {/* Players List */}
+      <section className="px-5 flex flex-col gap-3" aria-label="Players">
+        {players.length === 0 ? (
+          <div className="glass rounded-xl p-8 text-center">
+            <Trophy className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              No Players Yet
+            </h3>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Players will appear here once they show interest in this tournament
+            </p>
+          </div>
+        ) : (
+          players.map((player) => (
+            <div
+              key={player.id}
+              className={cn(
+                "glass rounded-xl p-4 flex items-start gap-3",
+                player.interest_status === 'withdrawn' && "opacity-60"
+              )}
+            >
+              {/* Avatar */}
+              {player.profile_image_url ? (
+                <img
+                  src={player.profile_image_url}
+                  alt={player.name}
+                  className="h-11 w-11 rounded-lg object-cover shrink-0"
+                />
+              ) : (
+                <div className="h-11 w-11 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
+                  <User className="h-5 w-5 text-gold" />
+                </div>
+              )}
+
+              <div className="flex-1 min-w-0">
+                {/* Name + Role */}
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-sm font-semibold text-foreground truncate">
+                    {player.name}
+                  </h3>
+                  {getRoleBadge(player.role)}
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-4 gap-2 mt-2">
+                  <div className="bg-secondary/50 rounded-md px-2 py-1.5 text-center">
+                    <p className="text-[9px] text-muted-foreground uppercase">Base</p>
+                    <p className="text-xs font-bold text-gold">{player.base_points}</p>
+                  </div>
+                  <div className="bg-secondary/50 rounded-md px-2 py-1.5 text-center">
+                    <p className="text-[9px] text-muted-foreground uppercase">Matches</p>
+                    <p className="text-xs font-bold text-foreground">{player.matches_played}</p>
+                  </div>
+                  <div className="bg-secondary/50 rounded-md px-2 py-1.5 text-center">
+                    <p className="text-[9px] text-muted-foreground uppercase">Runs</p>
+                    <p className="text-xs font-bold text-foreground">{player.runs_scored}</p>
+                  </div>
+                  <div className="bg-secondary/50 rounded-md px-2 py-1.5 text-center">
+                    <p className="text-[9px] text-muted-foreground uppercase">Wickets</p>
+                    <p className="text-xs font-bold text-foreground">{player.wickets_taken}</p>
+                  </div>
+                </div>
+
+                {/* Hand Info */}
+                <div className="flex gap-2 mt-2">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary/50 text-muted-foreground">
+                    Bat: {player.batting_hand}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary/50 text-muted-foreground">
+                    Bowl: {player.bowling_hand}
+                  </span>
+                </div>
+              </div>
+
+              {/* Interest Status */}
+              <div className="shrink-0">
+                {player.interest_status === 'withdrawn' ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/15 text-destructive">
+                    Withdrawn
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neon/15 text-neon">
+                    Interested
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </section>
     </div>
   )
 }

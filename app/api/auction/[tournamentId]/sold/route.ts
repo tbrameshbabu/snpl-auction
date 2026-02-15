@@ -20,20 +20,28 @@ export async function POST(
     }
 
     // Verify user is the auctioneer
+    const { data: auctioneer } = await supabase
+      .from('auctioneers')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!auctioneer) {
+      return NextResponse.json({ error: 'Unauthorized - Not an auctioneer' }, { status: 403 })
+    }
+
     const { data: tournament } = await supabase
       .from('tournaments')
-      .select(`
-        id,
-        status,
-        auctioneers:auctioneer_id (
-          user_id
-        )
-      `)
+      .select('id, status, auctioneer_id')
       .eq('id', tournamentId)
       .single()
 
-    if (!tournament || tournament.auctioneers?.user_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!tournament) {
+      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
+    }
+
+    if (tournament.auctioneer_id !== auctioneer.id) {
+      return NextResponse.json({ error: 'Unauthorized - You do not own this tournament' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -75,38 +83,58 @@ export async function POST(
       .eq('id', tournament_player_id)
 
     if (updateError) {
+      console.error('Error updating tournament_player:', updateError)
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
+    console.log('Updated tournament_player status to sold')
 
-    // Create player_sale record
+    // Create or update player_sale record
     const { data: sale, error: saleError } = await supabase
       .from('player_sales')
-      .insert({
+      .upsert({
         tournament_id: tournamentId,
         tournament_player_id,
         team_id,
         final_price,
         status: 'sold',
-      })
+      }, { onConflict: 'tournament_player_id' })
       .select()
       .single()
 
     if (saleError) {
+      console.error('Error creating player_sale:', saleError)
       return NextResponse.json({ error: saleError.message }, { status: 500 })
     }
+    console.log('Created player_sale record:', sale)
 
-    // Update team's spent amount
-    const { error: teamError } = await supabase
+    // Update team's spent amount using admin client to bypass RLS
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const hasAdminKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    console.log('Admin key present:', hasAdminKey)
+    
+    if (!hasAdminKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY is missing')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    const adminClient = createAdminClient()
+    const newSpent = (team.spent || 0) + final_price
+    
+    console.log('Updating team budget with admin client:', { team_id, old_spent: team.spent, new_spent: newSpent })
+    const { error: teamError } = await adminClient
       .from('teams')
-      .update({ spent: team.spent + final_price })
+      .update({ spent: newSpent })
       .eq('id', team_id)
 
     if (teamError) {
+      console.error('Error updating team budget:', teamError)
       return NextResponse.json({ error: teamError.message }, { status: 500 })
     }
+    console.log('Updated team budget successfully')
 
     return NextResponse.json({ sale, message: 'Player sold successfully' })
   } catch (error: any) {
+    console.error('Error in sold route:', error)
     if (error.name === 'ZodError') {
       return NextResponse.json({ error: error.errors }, { status: 400 })
     }

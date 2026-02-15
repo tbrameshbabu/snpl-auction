@@ -397,6 +397,38 @@ export default function PublicTournamentDetailPage({
               Go to Auctioneer Dashboard
             </Button>
           )}
+
+          {/* Completed Tournament Actions */}
+          {tournament.status === 'completed' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gold/10 border border-gold/20">
+                <Trophy className="h-4 w-4 text-gold shrink-0" />
+                <span className="text-sm font-medium text-gold">
+                  This tournament has been completed
+                </span>
+              </div>
+              {user && role === 'team_owner' && teamRegistered && (
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/team-owner/tournaments/${tournamentId}/results`)}
+                  className="w-full bg-gold text-background hover:bg-gold/90 font-semibold"
+                >
+                  <Trophy className="h-4 w-4 mr-1.5" />
+                  View Your Team Results
+                </Button>
+              )}
+              {user && role === 'player' && (
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/player/tournaments/${tournamentId}/results`)}
+                  className="w-full bg-gold text-background hover:bg-gold/90 font-semibold"
+                >
+                  <Trophy className="h-4 w-4 mr-1.5" />
+                  View Your Results
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { markUnsoldSchema } from '@/lib/validations/auctioneer'
 
 export async function POST(
   request: Request,
@@ -30,56 +29,39 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized - Not an auctioneer' }, { status: 403 })
     }
 
+    // Verify user owns this tournament
     const { data: tournament } = await supabase
       .from('tournaments')
-      .select('id, auctioneer_id')
+      .select('id, status, auctioneer_id')
       .eq('id', tournamentId)
       .single()
-      
+
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     }
 
     if (tournament.auctioneer_id !== auctioneer.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      return NextResponse.json({ error: 'Unauthorized - You do not own this tournament' }, { status: 403 })
     }
 
-    const body = await request.json()
-    const { tournament_player_id } = markUnsoldSchema.parse(body)
+    if (tournament.status !== 'live') {
+      return NextResponse.json({ error: `Cannot complete: tournament is ${tournament.status}` }, { status: 400 })
+    }
 
-    // Update tournament_player status
+    // Update tournament status to completed
     const { error: updateError } = await supabase
-      .from('tournament_players')
-      .update({ status: 'unsold' })
-      .eq('id', tournament_player_id)
-      .eq('tournament_id', tournamentId)
+      .from('tournaments')
+      .update({ status: 'completed' })
+      .eq('id', tournamentId)
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
 
-    // Create player_sale record
-    const { data: sale, error: saleError } = await supabase
-      .from('player_sales')
-      .insert({
-        tournament_id: tournamentId,
-        tournament_player_id,
-        team_id: null,
-        final_price: null,
-        status: 'unsold',
-      })
-      .select()
-      .single()
+    return NextResponse.json({ message: 'Tournament completed successfully' })
 
-    if (saleError) {
-      return NextResponse.json({ error: saleError.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ sale, message: 'Player marked as unsold' })
   } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
-    }
+    console.error('Complete tournament error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Calendar,
   User,
+  Wallet,
 } from 'lucide-react'
 
 interface Tournament {
@@ -50,6 +51,7 @@ export default function PlayerDashboardPage() {
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(null)
+  const [completedTournaments, setCompletedTournaments] = useState<any[]>([])
 
   useEffect(() => {
     if (!authLoading && (!user || role !== 'player')) {
@@ -88,6 +90,17 @@ export default function PlayerDashboardPage() {
       const interestsRes = await fetch('/api/players/interests')
       const interestsData = await interestsRes.json()
       setInterests(interestsData.interests || [])
+
+      // Fetch completed tournaments
+      try {
+        const completedRes = await fetch('/api/players/completed-tournaments')
+        if (completedRes.ok) {
+          const completedData = await completedRes.json()
+          setCompletedTournaments(completedData.tournaments || [])
+        }
+      } catch (e) {
+        console.error('Error fetching completed tournaments:', e)
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -525,6 +538,78 @@ export default function PlayerDashboardPage() {
           })
         )}
       </section>
+
+      {/* Completed Auctions Section */}
+      {completedTournaments.length > 0 && (
+        <>
+          <div className="px-5 mt-6 mb-3">
+            <h2 className="text-lg font-bold text-foreground">
+              Completed Auctions
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              View your results from past tournaments
+            </p>
+          </div>
+
+          <section className="px-5 flex flex-col gap-3" aria-label="Completed auctions">
+            {completedTournaments.map((ct: any) => (
+              <div key={ct.tournament.id} className="glass rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={cn(
+                    "h-11 w-11 rounded-lg flex items-center justify-center shrink-0",
+                    ct.player_status === 'sold' ? 'bg-neon/15' : 'bg-destructive/10'
+                  )}>
+                    {ct.player_status === 'sold' ? (
+                      <Check className="h-5 w-5 text-neon" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-destructive" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-foreground truncate">
+                      {ct.tournament.title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {ct.player_status === 'sold' 
+                        ? `Sold to ${ct.sold_to?.name || 'Unknown'} for ${ct.sold_price} pts`
+                        : 'Unsold'
+                      }
+                    </p>
+                  </div>
+                  <span className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                    ct.player_status === 'sold' ? 'bg-neon/15 text-neon' : 'bg-destructive/15 text-destructive'
+                  )}>
+                    {ct.player_status === 'sold' ? 'SOLD' : 'UNSOLD'}
+                  </span>
+                </div>
+
+                {ct.player_status === 'sold' && ct.sold_to && (
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-secondary/50 rounded-lg p-2 text-center">
+                      <span className="text-[10px] text-muted-foreground">Sold For</span>
+                      <p className="text-sm font-bold text-neon">{ct.sold_price} pts</p>
+                    </div>
+                    <div className="bg-secondary/50 rounded-lg p-2 text-center">
+                      <span className="text-[10px] text-muted-foreground">Base Price</span>
+                      <p className="text-sm font-bold text-foreground">{ct.base_price} pts</p>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/player/tournaments/${ct.tournament.id}/results`)}
+                  className="w-full bg-gold text-background hover:bg-gold/90 font-semibold"
+                >
+                  <Trophy className="h-4 w-4 mr-1.5" />
+                  View Full Results
+                </Button>
+              </div>
+            ))}
+          </section>
+        </>
+      )}
 
       {/* Info Banner */}
       <section className="px-5 py-6">

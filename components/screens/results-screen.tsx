@@ -1,115 +1,208 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Trophy,
   Wallet,
   User,
-  TrendingUp,
-  TrendingDown,
   Medal,
   Crown,
   Users,
   ChevronDown,
   ChevronUp,
+  Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { TeamLogo } from "@/components/team-logo";
+
+/* ─────────────────────── Types ─────────────────────── */
 
 interface ResultsScreenProps {
+  tournamentId: string;
   onNavigate: (screen: string) => void;
 }
 
-const leaderboard = [
-  {
-    id: 1,
-    rank: 1,
-    name: "Royal Strikers",
-    spent: 1680,
-    budget: 2000,
-    players: 7,
-    maxPlayers: 8,
-    mvp: "Rohit Sharma",
-    mvpCost: 380,
-    change: "up" as const,
-  },
-  {
-    id: 2,
-    rank: 2,
-    name: "Thunder Hawks",
-    spent: 1520,
-    budget: 2500,
-    players: 6,
-    maxPlayers: 8,
-    mvp: "Jasprit Bumrah",
-    mvpCost: 420,
-    change: "up" as const,
-  },
-  {
-    id: 3,
-    rank: 3,
-    name: "Golden Eagles",
-    spent: 1400,
-    budget: 1800,
-    players: 7,
-    maxPlayers: 8,
-    mvp: "Hardik Pandya",
-    mvpCost: 350,
-    change: "down" as const,
-  },
-  {
-    id: 4,
-    rank: 4,
-    name: "Neon Knights",
-    spent: 1200,
-    budget: 2200,
-    players: 5,
-    maxPlayers: 8,
-    mvp: "KL Rahul",
-    mvpCost: 320,
-    change: "same" as const,
-  },
-  {
-    id: 5,
-    rank: 5,
-    name: "Storm Breakers",
-    spent: 980,
-    budget: 2000,
-    players: 5,
-    maxPlayers: 8,
-    mvp: "Rishabh Pant",
-    mvpCost: 280,
-    change: "down" as const,
-  },
-];
+interface SaleData {
+  id: string;
+  final_price: number | null;
+  status: string;
+  tournament_players: {
+    id: string;
+    base_price: number;
+    players: {
+      id: string;
+      name: string;
+      profile_image_url?: string;
+      role: string;
+    };
+  };
+  teams: {
+    id: string;
+    name: string;
+    short_name: string;
+    color: string;
+    logo_url?: string | null;
+  } | null;
+}
 
-const myTeamRoster = [
-  { id: 1, name: "Rohit Sharma", role: "Batsman", cost: 380 },
-  { id: 2, name: "Shubman Gill", role: "Batsman", cost: 220 },
-  { id: 3, name: "Ravindra Jadeja", role: "All-Rounder", cost: 310 },
-  { id: 4, name: "Mohammed Siraj", role: "Bowler", cost: 180 },
-  { id: 5, name: "Rishabh Pant", role: "Keeper", cost: 280 },
-  { id: 6, name: "Yuzvendra Chahal", role: "Bowler", cost: 160 },
-  { id: 7, name: "Suryakumar Yadav", role: "Batsman", cost: 150 },
-];
+interface TeamData {
+  id: string;
+  name: string;
+  short_name: string;
+  color: string;
+  budget: number;
+  spent: number;
+  logo_url?: string | null;
+}
 
-export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
-  const [activeTab, setActiveTab] = useState<"leaderboard" | "wallet">(
-    "leaderboard"
-  );
-  const [expandedTeam, setExpandedTeam] = useState<number | null>(null);
+interface TeamLeaderboard {
+  id: string;
+  rank: number;
+  name: string;
+  short_name: string;
+  color: string;
+  spent: number;
+  budget: number;
+  playersCount: number;
+  roster: { name: string; role: string; cost: number }[];
+  mvpName: string;
+  mvpCost: number;
+  logo_url?: string | null;
+}
 
-  const totalSpent = myTeamRoster.reduce((sum, p) => sum + p.cost, 0);
-  const totalBudget = 2000;
-  const remaining = totalBudget - totalSpent;
+/* ─────────────────── Component ─────────────────── */
+
+export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [leaderboard, setLeaderboard] = useState<TeamLeaderboard[]>([]);
+  const [activeTab, setActiveTab] = useState<"leaderboard" | "all_teams">("leaderboard");
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [totalSold, setTotalSold] = useState(0);
+  const [totalUnsold, setTotalUnsold] = useState(0);
+
+  /* ── fetch results ── */
+  const fetchResults = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/auction/${tournamentId}/state`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to load results");
+        setLoading(false);
+        return;
+      }
+
+      const sales: SaleData[] = data.results || [];
+      const teams: TeamData[] = data.teams || [];
+
+      const sold = sales.filter((s) => s.status === "sold");
+      const unsold = sales.filter((s) => s.status === "unsold");
+      setTotalSold(sold.length);
+      setTotalUnsold(unsold.length);
+
+      // Build leaderboard from teams + sales
+      const teamMap = new Map<string, TeamLeaderboard>();
+
+      teams.forEach((t) => {
+        teamMap.set(t.id, {
+          id: t.id,
+          rank: 0,
+          name: t.name,
+          short_name: t.short_name || t.name.charAt(0),
+          color: t.color || "#F4A261",
+          spent: t.spent ?? 0,
+          budget: t.budget ?? 0,
+          playersCount: 0,
+          roster: [],
+          logo_url: (t as any).logo_url || null,
+          mvpName: "—",
+          mvpCost: 0,
+        });
+      });
+
+      // Map sales to teams
+      sold.forEach((sale) => {
+        if (sale.teams) {
+          const team = teamMap.get(sale.teams.id);
+          if (team) {
+            const playerName = sale.tournament_players?.players?.name || "Unknown";
+            const playerRole = sale.tournament_players?.players?.role?.replace("_", " ") || "Player";
+            const cost = sale.final_price || 0;
+
+            team.roster.push({ name: playerName, role: playerRole, cost });
+            team.playersCount++;
+
+            if (cost > team.mvpCost) {
+              team.mvpName = playerName;
+              team.mvpCost = cost;
+            }
+          }
+        }
+      });
+
+      // Sort by total spent (descending) and assign ranks
+      const sorted = Array.from(teamMap.values())
+        .sort((a, b) => b.spent - a.spent)
+        .map((t, i) => ({ ...t, rank: i + 1 }));
+
+      setLeaderboard(sorted);
+      setLoading(false);
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+      setLoading(false);
+    }
+  }, [tournamentId]);
+
+  useEffect(() => {
+    fetchResults();
+  }, [fetchResults]);
+
+  /* ── Loading ── */
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-5">
+        <div className="glass rounded-xl p-6 text-center max-w-sm">
+          <p className="text-destructive mb-4">{error}</p>
+          <Button onClick={() => onNavigate("overview")}>Back</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const top3 = leaderboard.slice(0, 3);
+  // Arrange for podium: 2nd, 1st, 3rd
+  const podium = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="pb-24">
       {/* Header */}
-      <header className="px-5 pt-10 pb-4">
-        <h1 className="text-2xl font-bold text-foreground">Results</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Auction standings and your team
-        </p>
+      <header className="px-5 pt-8 pb-4">
+        <div className="flex items-center gap-3 mb-1">
+          <button
+            type="button"
+            onClick={() => onNavigate("overview")}
+            className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Results</h1>
+            <p className="text-xs text-muted-foreground">
+              {totalSold} sold · {totalUnsold} unsold
+            </p>
+          </div>
+        </div>
       </header>
 
       {/* Tab Switcher */}
@@ -130,16 +223,16 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("wallet")}
+            onClick={() => setActiveTab("all_teams")}
             className={cn(
               "flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5",
-              activeTab === "wallet"
+              activeTab === "all_teams"
                 ? "bg-gold text-background"
                 : "text-muted-foreground"
             )}
           >
-            <Wallet className="h-3.5 w-3.5" />
-            My Team
+            <Users className="h-3.5 w-3.5" />
+            All Teams
           </button>
         </div>
       </div>
@@ -147,9 +240,9 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
       {activeTab === "leaderboard" ? (
         <div className="px-5">
           {/* Top 3 Podium */}
-          <div className="flex items-end justify-center gap-3 mb-6">
-            {[leaderboard[1], leaderboard[0], leaderboard[2]].map(
-              (team, i) => {
+          {podium.length >= 3 && (
+            <div className="flex items-end justify-center gap-3 mb-6">
+              {podium.map((team, i) => {
                 const podiumOrder = [2, 1, 3];
                 const heights = ["h-20", "h-28", "h-16"];
                 const isFirst = podiumOrder[i] === 1;
@@ -165,11 +258,24 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
                           ? "bg-gold/20 text-gold ring-2 ring-gold"
                           : "bg-secondary text-muted-foreground"
                       )}
+                      style={
+                        !isFirst
+                          ? {
+                              backgroundColor: `${team.color}20`,
+                              color: team.color,
+                            }
+                          : undefined
+                      }
                     >
                       {isFirst ? (
                         <Crown className="h-5 w-5" />
                       ) : (
-                        team.name.charAt(0)
+                        <TeamLogo
+                          logoUrl={team.logo_url}
+                          shortName={team.short_name}
+                          color={team.color}
+                          size="md"
+                        />
                       )}
                     </div>
                     <span className="text-xs font-semibold text-foreground text-center mb-1 truncate w-full">
@@ -198,9 +304,9 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
                     </div>
                   </div>
                 );
-              }
-            )}
-          </div>
+              })}
+            </div>
+          )}
 
           {/* Full Standings */}
           <div className="flex flex-col gap-2">
@@ -209,7 +315,9 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
                 <button
                   type="button"
                   onClick={() =>
-                    setExpandedTeam(expandedTeam === team.id ? null : team.id)
+                    setExpandedTeam(
+                      expandedTeam === team.id ? null : team.id
+                    )
                   }
                   className="w-full p-3.5 flex items-center gap-3 text-left"
                 >
@@ -221,34 +329,22 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
                   >
                     {team.rank}
                   </span>
-                  <div
-                    className={cn(
-                      "h-9 w-9 rounded-lg flex items-center justify-center text-xs font-bold",
-                      team.rank === 1
-                        ? "bg-gold/15 text-gold"
-                        : team.rank <= 3
-                          ? "bg-neon/10 text-neon"
-                          : "bg-secondary text-muted-foreground"
-                    )}
-                  >
-                    {team.name.charAt(0)}
-                  </div>
+                  <TeamLogo
+                    logoUrl={team.logo_url}
+                    shortName={team.short_name}
+                    color={team.color}
+                    size="sm"
+                  />
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-semibold text-foreground truncate">
                       {team.name}
                     </h4>
                     <p className="text-[11px] text-muted-foreground">
-                      {team.players}/{team.maxPlayers} players &middot;{" "}
-                      {team.spent} pts spent
+                      {team.playersCount} players &middot; {team.spent} pts
+                      spent
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {team.change === "up" && (
-                      <TrendingUp className="h-3.5 w-3.5 text-neon" />
-                    )}
-                    {team.change === "down" && (
-                      <TrendingDown className="h-3.5 w-3.5 text-destructive" />
-                    )}
                     {expandedTeam === team.id ? (
                       <ChevronUp className="h-4 w-4 text-muted-foreground" />
                     ) : (
@@ -272,7 +368,7 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
                           MVP
                         </span>
                         <p className="text-[11px] font-bold text-gold truncate">
-                          {team.mvp}
+                          {team.mvpName}
                         </p>
                       </div>
                       <div className="bg-secondary/60 rounded-lg p-2 text-center">
@@ -284,6 +380,33 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
                         </p>
                       </div>
                     </div>
+
+                    {/* Roster */}
+                    {team.roster.length > 0 && (
+                      <div className="flex flex-col gap-1.5">
+                        {team.roster.map((player, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 bg-secondary/30 rounded-lg p-2"
+                          >
+                            <div className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                              <User className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-foreground truncate">
+                                {player.name}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {player.role}
+                              </p>
+                            </div>
+                            <span className="text-xs font-bold text-gold font-mono">
+                              {player.cost}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -291,61 +414,34 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
           </div>
         </div>
       ) : (
+        /* ─── All Teams Tab ─── */
         <div className="px-5">
-          {/* Budget Overview */}
-          <div className="glass rounded-xl p-5 mb-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-foreground">
-                Team Wallet
-              </h3>
-              <span className="text-xs text-muted-foreground">
-                Royal Strikers
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="text-3xl font-bold text-gold font-mono">
-                {remaining}
-              </span>
-              <span className="text-sm text-muted-foreground">pts remaining</span>
-            </div>
-            <div className="h-2 bg-secondary rounded-full overflow-hidden mb-2">
-              <div
-                className="h-full bg-gold rounded-full transition-all duration-500"
-                style={{
-                  width: `${((totalBudget - totalSpent) / totalBudget) * 100}%`,
-                }}
-              />
-            </div>
-            <div className="flex justify-between text-[11px] text-muted-foreground">
-              <span>Spent: {totalSpent} pts</span>
-              <span>Budget: {totalBudget} pts</span>
-            </div>
-          </div>
-
-          {/* Roster Stats */}
+          {/* Summary Stats */}
           <div className="grid grid-cols-3 gap-3 mb-5">
             <div className="glass rounded-xl p-3 text-center">
               <Users className="h-4 w-4 text-gold mx-auto mb-1" />
               <span className="text-lg font-bold text-foreground">
-                {myTeamRoster.length}
+                {leaderboard.reduce((sum, t) => sum + t.playersCount, 0)}
               </span>
               <span className="text-[10px] text-muted-foreground block">
-                Players
+                Players Sold
               </span>
             </div>
             <div className="glass rounded-xl p-3 text-center">
               <Medal className="h-4 w-4 text-neon mx-auto mb-1" />
               <span className="text-lg font-bold text-foreground">
-                {Math.round(totalSpent / myTeamRoster.length)}
+                {leaderboard.reduce((sum, t) => sum + t.spent, 0)}
               </span>
               <span className="text-[10px] text-muted-foreground block">
-                Avg Cost
+                Total Spent
               </span>
             </div>
             <div className="glass rounded-xl p-3 text-center">
-              <TrendingUp className="h-4 w-4 text-gold mx-auto mb-1" />
+              <Wallet className="h-4 w-4 text-gold mx-auto mb-1" />
               <span className="text-lg font-bold text-foreground">
-                {Math.max(...myTeamRoster.map((p) => p.cost))}
+                {leaderboard.length > 0
+                  ? Math.max(...leaderboard.map((t) => t.mvpCost))
+                  : 0}
               </span>
               <span className="text-[10px] text-muted-foreground block">
                 Top Buy
@@ -353,35 +449,82 @@ export function ResultsScreen({ onNavigate }: ResultsScreenProps) {
             </div>
           </div>
 
-          {/* Roster List */}
-          <h3 className="text-sm font-semibold text-foreground mb-3">
-            Your Roster
-          </h3>
-          <div className="flex flex-col gap-2">
-            {myTeamRoster.map((player) => (
-              <div
-                key={player.id}
-                className="glass rounded-xl p-3 flex items-center gap-3"
-              >
-                <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-foreground truncate">
-                    {player.name}
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground">
-                    {player.role}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-gold font-mono">
-                    {player.cost}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground block">
-                    pts
-                  </span>
-                </div>
+          {/* All teams with their rosters */}
+          <div className="flex flex-col gap-3">
+            {leaderboard.map((team) => (
+              <div key={team.id} className="glass rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedTeam(
+                      expandedTeam === team.id ? null : team.id
+                    )
+                  }
+                  className="w-full p-4 flex items-center gap-3 text-left"
+                >
+                  <TeamLogo
+                    logoUrl={team.logo_url}
+                    shortName={team.short_name}
+                    color={team.color}
+                    size="md"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold text-foreground truncate">
+                      {team.name}
+                    </h4>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <span className="text-[10px] text-muted-foreground">
+                        <span className="font-bold text-foreground">
+                          {team.playersCount}
+                        </span>{" "}
+                        players
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        <span className="font-bold text-gold">
+                          {team.budget - team.spent}
+                        </span>{" "}
+                        remaining
+                      </span>
+                    </div>
+                  </div>
+                  {expandedTeam === team.id ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+
+                {expandedTeam === team.id && (
+                  <div className="px-4 pb-4 border-t border-border/30 pt-3 flex flex-col gap-1.5">
+                    {team.roster.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-3">
+                        No players bought
+                      </p>
+                    ) : (
+                      team.roster.map((player, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 bg-secondary/30 rounded-lg p-2.5"
+                        >
+                          <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">
+                              {player.name}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {player.role}
+                            </p>
+                          </div>
+                          <span className="text-xs font-bold text-gold font-mono">
+                            {player.cost} pts
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

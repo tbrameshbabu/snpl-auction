@@ -4,9 +4,21 @@ import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
-import { Loader2, Calendar, Users, Trophy, Clock, ArrowLeft, Play, Settings, CalendarDays, Edit, Eye } from 'lucide-react'
-import { format } from 'date-fns'
-import { cn } from '@/lib/utils'
+import { AppHeader } from '@/components/app-header'
+import {
+  Loader2,
+  Users,
+  Trophy,
+  Clock,
+  ArrowLeft,
+  Play,
+  CalendarDays,
+  Edit,
+  Eye,
+  Wallet,
+  UserCheck,
+  Zap,
+} from 'lucide-react'
 
 interface Tournament {
   id: string
@@ -89,15 +101,15 @@ export default function TournamentDetailPage({
   }
 
   const getStatusBadge = (status: string) => {
-    const badges = {
-      draft: { bg: 'bg-gray-500/15', text: 'text-gray-500', label: 'DRAFT' },
-      published: { bg: 'bg-blue-500/15', text: 'text-blue-500', label: 'PUBLISHED' },
-      live: { bg: 'bg-green-500/15', text: 'text-green-500', label: 'LIVE' },
-      completed: { bg: 'bg-purple-500/15', text: 'text-purple-500', label: 'COMPLETED' }
+    const badges: Record<string, { bg: string; text: string; label: string }> = {
+      draft: { bg: 'bg-gold/15', text: 'text-gold', label: 'DRAFT' },
+      published: { bg: 'bg-neon/15', text: 'text-neon', label: 'OPEN' },
+      live: { bg: 'bg-destructive/15', text: 'text-destructive', label: 'LIVE' },
+      completed: { bg: 'bg-secondary', text: 'text-muted-foreground', label: 'COMPLETED' },
     }
-    const badge = badges[status as keyof typeof badges] || badges.draft
+    const badge = badges[status] || badges.draft
     return (
-      <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold', badge.bg, badge.text)}>
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>
         {badge.label}
       </span>
     )
@@ -105,15 +117,15 @@ export default function TournamentDetailPage({
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
     )
   }
 
   if (error && !tournament) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-5">
+      <div className="min-h-screen p-5">
         <div className="glass rounded-xl p-6 max-w-md mx-auto mt-20">
           <p className="text-red-400 mb-4">{error}</p>
           <Button onClick={() => router.push('/auctioneer/tournaments')} className="w-full">
@@ -127,32 +139,31 @@ export default function TournamentDetailPage({
   if (!tournament) return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pb-24">
+    <div className="min-h-screen pb-24">
+      <AppHeader />
+
       {/* Header */}
-      <header className="px-5 pt-10 pb-4">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-3">
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--gold)/0.08),transparent_60%)]" />
+        <div className="relative px-5 pt-6 pb-4">
+          <div className="flex items-center gap-3 mb-2">
             <button
               type="button"
               onClick={() => router.push('/auctioneer/tournaments')}
-              className="h-9 w-9 rounded-lg glass flex items-center justify-center"
+              className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0"
             >
-              <ArrowLeft className="h-4.5 w-4.5 text-muted-foreground" />
+              <ArrowLeft className="h-4 w-4 text-muted-foreground" />
             </button>
-            <h1 className="text-2xl font-bold text-foreground">
-              Tournament
-            </h1>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">
+                {tournament.title}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Manage Tournament
+              </p>
+            </div>
           </div>
-          <button
-            type="button"
-            className="h-9 w-9 rounded-lg glass flex items-center justify-center"
-          >
-            <Settings className="h-4.5 w-4.5 text-muted-foreground" />
-          </button>
         </div>
-        <p className="text-sm text-muted-foreground ml-12">
-          Manage your tournament
-        </p>
       </header>
 
       {/* Tournament Info Card */}
@@ -164,111 +175,183 @@ export default function TournamentDetailPage({
             </h3>
             {getStatusBadge(tournament.status)}
           </div>
-          
+
           {tournament.description && (
-            <p className="text-xs text-muted-foreground mb-3">
+            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
               {tournament.description}
             </p>
           )}
 
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(tournament.auction_date), 'MMM dd')}
-              </span>
+          {/* 2x2 Details Grid */}
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-gold shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Date</p>
+                <p className="text-sm font-bold text-foreground">
+                  {new Date(tournament.auction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{tournament.auction_time}</span>
+            <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-gold shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Time</p>
+                <p className="text-sm font-bold text-foreground">{tournament.auction_time}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                {tournament.num_teams} teams
-              </span>
+            <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
+              <Users className="h-4 w-4 text-gold shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Teams</p>
+                <p className="text-sm font-bold text-foreground">{tournament.num_teams}</p>
+              </div>
+            </div>
+            <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-gold shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Budget</p>
+                <p className="text-sm font-bold text-foreground">{tournament.budget_per_team} pts</p>
+              </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-2">
+          {/* Status-Based Action Buttons */}
+          <div className="flex flex-col gap-2">
+            {/* Draft → Publish + Edit */}
             {tournament.status === 'draft' && (
               <>
                 <Button
-                  size="sm"
+                  size="lg"
                   onClick={handlePublish}
                   disabled={publishing}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 font-semibold"
+                  className="w-full bg-neon text-background hover:bg-neon/90 font-semibold"
                 >
+                  {publishing ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Zap className="h-4 w-4 mr-1.5" />
+                  )}
                   {publishing ? 'Publishing...' : 'Publish Tournament'}
                 </Button>
                 <Button
-                  size="sm"
+                  size="lg"
                   variant="outline"
                   onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/edit`)}
-                  className="w-full border-border text-foreground hover:bg-secondary bg-transparent"
+                  className="w-full border-gold/30 text-gold hover:bg-gold/10 bg-transparent font-semibold"
                 >
-                  <Edit className="h-3.5 w-3.5 mr-1" />
+                  <Edit className="h-4 w-4 mr-1.5" />
                   Edit Tournament
                 </Button>
               </>
             )}
-            
-            {(tournament.status === 'published' || tournament.status === 'live') && (
+
+            {/* Published → View Teams, View Players, Start Auction */}
+            {tournament.status === 'published' && (
               <>
                 <Button
-                  size="sm"
-                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/teams`)}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 font-semibold"
+                  size="lg"
+                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/auction`)}
+                  className="w-full bg-neon text-background hover:bg-neon/90 font-semibold"
                 >
-                  <Eye className="h-3.5 w-3.5 mr-1" />
+                  <Play className="h-4 w-4 mr-1.5" />
+                  Start Auction
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/teams`)}
+                  className="w-full bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
+                >
+                  <Eye className="h-4 w-4 mr-1.5" />
                   View Registered Teams
                 </Button>
                 <Button
-                  size="sm"
+                  size="lg"
                   variant="outline"
                   onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/players`)}
-                  className="w-full border-border text-foreground hover:bg-secondary bg-transparent"
+                  className="w-full border-gold/30 text-gold hover:bg-gold/10 bg-transparent font-semibold"
                 >
-                  <Eye className="h-3.5 w-3.5 mr-1" />
+                  <Eye className="h-4 w-4 mr-1.5" />
                   View Player Pool
                 </Button>
-                {tournament.status === 'published' && (
-                  <Button
-                    size="sm"
-                    onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/auction`)}
-                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 font-semibold"
-                  >
-                    <Play className="h-3.5 w-3.5 mr-1" />
-                    Start Auction
-                  </Button>
-                )}
               </>
             )}
 
+            {/* Live → Go to Auction Control + View Teams/Players */}
             {tournament.status === 'live' && (
-              <Button
-                size="sm"
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 font-semibold"
-              >
-                <Play className="h-3.5 w-3.5 mr-1" />
-                Go to Auction Control
-              </Button>
+              <>
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/auction`)}
+                  className="w-full bg-neon text-background hover:bg-neon/90 font-semibold"
+                >
+                  <Play className="h-4 w-4 mr-1.5" />
+                  Go to Auction Control
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/teams`)}
+                  className="w-full bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
+                >
+                  <Eye className="h-4 w-4 mr-1.5" />
+                  View Registered Teams
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/players`)}
+                  className="w-full border-gold/30 text-gold hover:bg-gold/10 bg-transparent font-semibold"
+                >
+                  <Eye className="h-4 w-4 mr-1.5" />
+                  View Player Pool
+                </Button>
+              </>
+            )}
+
+            {/* Completed → View Results, View Teams, View Players */}
+            {tournament.status === 'completed' && (
+              <>
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/auction`)}
+                  className="w-full bg-gold text-background hover:bg-gold/90 font-semibold"
+                >
+                  <Trophy className="h-4 w-4 mr-1.5" />
+                  View Auction Results
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/teams`)}
+                  className="w-full bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
+                >
+                  <Eye className="h-4 w-4 mr-1.5" />
+                  View Registered Teams
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}/players`)}
+                  className="w-full border-gold/30 text-gold hover:bg-gold/10 bg-transparent font-semibold"
+                >
+                  <Eye className="h-4 w-4 mr-1.5" />
+                  View Player Pool
+                </Button>
+              </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Tournament Details */}
+      {/* Tournament Details Section */}
       <div className="px-5">
         <h2 className="text-sm font-semibold text-foreground mb-3">Tournament Information</h2>
-        
+
         <div className="glass rounded-xl p-4 space-y-3">
           {/* Budget */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-yellow-500/15 flex items-center justify-center">
-                <Trophy className="h-4.5 w-4.5 text-yellow-500" />
+              <div className="h-9 w-9 rounded-lg bg-gold/15 flex items-center justify-center">
+                <Trophy className="h-4 w-4 text-gold" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Budget Per Team</p>
@@ -280,8 +363,8 @@ export default function TournamentDetailPage({
           {/* Players */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-purple-500/15 flex items-center justify-center">
-                <Users className="h-4.5 w-4.5 text-purple-500" />
+              <div className="h-9 w-9 rounded-lg bg-neon/15 flex items-center justify-center">
+                <Users className="h-4 w-4 text-neon" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Players Per Team</p>
@@ -295,8 +378,8 @@ export default function TournamentDetailPage({
           {/* Duration */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-orange-500/15 flex items-center justify-center">
-                <Clock className="h-4.5 w-4.5 text-orange-500" />
+              <div className="h-9 w-9 rounded-lg bg-gold/15 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-gold" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Duration</p>
@@ -308,13 +391,17 @@ export default function TournamentDetailPage({
           {/* Created */}
           <div className="flex items-center justify-between pt-3 border-t border-border/50">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                <Calendar className="h-4.5 w-4.5 text-blue-500" />
+              <div className="h-9 w-9 rounded-lg bg-gold/15 flex items-center justify-center">
+                <UserCheck className="h-4 w-4 text-gold" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Created</p>
                 <p className="text-sm font-semibold text-foreground">
-                  {format(new Date(tournament.created_at), 'PPP')}
+                  {new Date(tournament.created_at).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
                 </p>
               </div>
             </div>
@@ -322,10 +409,11 @@ export default function TournamentDetailPage({
         </div>
       </div>
 
+      {/* Error */}
       {error && (
         <div className="px-5 mt-4">
-          <div className="glass rounded-xl p-4 bg-red-500/10 border border-red-500/20">
-            <p className="text-red-400 text-sm">{error}</p>
+          <div className="glass rounded-xl p-4 border border-destructive/20">
+            <p className="text-sm text-destructive">{error}</p>
           </div>
         </div>
       )}

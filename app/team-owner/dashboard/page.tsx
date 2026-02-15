@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { AppHeader } from '@/components/app-header'
 import { Button } from '@/components/ui/button'
+import { TeamLogo } from '@/components/team-logo'
 import { cn } from '@/lib/utils'
 import {
   Loader2,
@@ -45,6 +46,7 @@ interface TeamRegistration {
   budget: number
   spent: number
   status: string
+  logo_url?: string | null
 }
 
 export default function TeamOwnerDashboardPage() {
@@ -57,6 +59,10 @@ export default function TeamOwnerDashboardPage() {
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(null)
   const [joining, setJoining] = useState<string | null>(null)
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
+  const [completedTournaments, setCompletedTournaments] = useState<any[]>([])
+  const [uploadingLogo, setUploadingLogo] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadTeamId, setUploadTeamId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!user || role !== 'team_owner')) {
@@ -71,14 +77,17 @@ export default function TeamOwnerDashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [tournamentsRes, teamsRes] = await Promise.all([
+      const [tournamentsRes, teamsRes, completedRes] = await Promise.all([
         fetch('/api/auctioneers/tournaments?status=published'),
         fetch('/api/teams/register'),
+        fetch('/api/teams/completed-tournaments'),
       ])
       const tournamentsData = await tournamentsRes.json()
       const teamsData = await teamsRes.json()
+      const completedData = completedRes.ok ? await completedRes.json() : { tournaments: [] }
       setTournaments(tournamentsData.tournaments || [])
       setMyTeams(teamsData.teams || [])
+      setCompletedTournaments(completedData.tournaments || [])
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -154,6 +163,36 @@ export default function TeamOwnerDashboardPage() {
     }
   }
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !uploadTeamId) return
+
+    setUploadingLogo(uploadTeamId)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('team_id', uploadTeamId)
+
+      const response = await fetch('/api/teams/upload-logo', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        await fetchData()
+      } else {
+        const err = await response.json()
+        console.error('Upload failed:', err)
+      }
+    } catch (error) {
+      console.error('Error uploading logo:', error)
+    } finally {
+      setUploadingLogo(null)
+      setUploadTeamId(null)
+      // Reset the file input
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published': return 'text-neon'
@@ -201,6 +240,15 @@ export default function TeamOwnerDashboardPage() {
   return (
     <div className="min-h-screen pb-24">
       <AppHeader />
+
+      {/* Hidden File Input for Logo Upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleLogoUpload}
+      />
 
       {/* Header */}
       <header className="relative overflow-hidden">
@@ -461,6 +509,42 @@ export default function TeamOwnerDashboardPage() {
                             Your team is confirmed for this auction
                           </span>
                         </div>
+
+                        {/* Team Logo Upload */}
+                        {team && (
+                          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-secondary/30">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUploadTeamId(team.id)
+                                fileInputRef.current?.click()
+                              }}
+                              disabled={uploadingLogo === team.id}
+                              className="relative group"
+                            >
+                              <TeamLogo
+                                logoUrl={team.logo_url}
+                                shortName={team.short_name}
+                                color={team.color}
+                                size="lg"
+                              />
+                              <div className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                {uploadingLogo === team.id ? (
+                                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+                                ) : (
+                                  <span className="text-white text-[9px] font-bold">CHANGE</span>
+                                )}
+                              </div>
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-foreground">{team.name}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {team.logo_url ? 'Tap logo to change' : 'Tap to add team logo'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                         <Button
                           size="sm"
                           variant="ghost"
@@ -543,6 +627,67 @@ export default function TeamOwnerDashboardPage() {
           })
         )}
       </section>
+
+      {/* Completed Auctions Section */}
+      {completedTournaments.length > 0 && (
+        <>
+          <div className="px-5 mt-6 mb-3">
+            <h2 className="text-lg font-bold text-foreground">
+              Completed Auctions
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              View results from past auctions you participated in
+            </p>
+          </div>
+
+          <section className="px-5 flex flex-col gap-3" aria-label="Completed auctions">
+            {completedTournaments.map((ct: any) => (
+              <div key={ct.tournament.id} className="glass rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <TeamLogo
+                    logoUrl={ct.team.logo_url}
+                    shortName={ct.team.short_name || ct.team.name.charAt(0)}
+                    color={ct.team.color || '#F4A261'}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-foreground truncate">
+                      {ct.tournament.title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {ct.team.name} · {ct.players_bought} players bought
+                    </p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold">
+                    DONE
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div className="bg-secondary/50 rounded-lg p-2 text-center">
+                    <span className="text-[10px] text-muted-foreground">Spent</span>
+                    <p className="text-sm font-bold text-foreground">{ct.team.spent ?? 0}</p>
+                  </div>
+                  <div className="bg-secondary/50 rounded-lg p-2 text-center">
+                    <span className="text-[10px] text-muted-foreground">Remaining</span>
+                    <p className="text-sm font-bold text-neon">{(ct.team.budget ?? 0) - (ct.team.spent ?? 0)}</p>
+                  </div>
+                  <div className="bg-secondary/50 rounded-lg p-2 text-center">
+                    <span className="text-[10px] text-muted-foreground">Players</span>
+                    <p className="text-sm font-bold text-foreground">{ct.players_bought}</p>
+                  </div>
+                </div>
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/team-owner/tournaments/${ct.tournament.id}/results`)}
+                  className="w-full bg-gold text-background hover:bg-gold/90 font-semibold"
+                >
+                  <Trophy className="h-4 w-4 mr-1.5" />
+                  View Results
+                </Button>
+              </div>
+            ))}
+          </section>
+        </>
+      )}
 
       {/* Info Banner */}
       <section className="px-5 py-6">
