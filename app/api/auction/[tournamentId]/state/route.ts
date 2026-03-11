@@ -38,7 +38,7 @@ export async function GET(
       return NextResponse.json({ error: teamsError.message }, { status: 500 })
     }
 
-    // Get current player (first pending or re_auction player)
+    // Get current active player
     const { data: currentPlayer, error: currentPlayerError } = await supabase
       .from('tournament_players')
       .select(`
@@ -54,8 +54,7 @@ export async function GET(
         )
       `)
       .eq('tournament_id', tournamentId)
-      .in('status', ['pending', 're_auction'])
-      .order('order_index', { ascending: true })
+      .eq('status', 'active')
       .limit(1)
       .single()
 

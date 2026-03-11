@@ -36,7 +36,10 @@ export async function POST(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     }
 
-    if (tournament.auctioneers?.user_id !== user.id) {
+    // @ts-ignore - The types say it's an array but the join is 1:1 in our usage
+    const auctioneerUserId = tournament.auctioneers?.[0]?.user_id || tournament.auctioneers?.user_id
+
+    if (auctioneerUserId !== user.id) {
       return NextResponse.json({ error: 'Only the auctioneer can place bids' }, { status: 403 })
     }
 
@@ -59,8 +62,8 @@ export async function POST(
       return NextResponse.json({ error: 'Player not in this tournament' }, { status: 404 })
     }
 
-    if (tournamentPlayer.status !== 'pending' && tournamentPlayer.status !== 're_auction') {
-      return NextResponse.json({ error: 'Player is not available for bidding' }, { status: 400 })
+    if (tournamentPlayer.status !== 'active') {
+      return NextResponse.json({ error: 'Player is not active for bidding' }, { status: 400 })
     }
 
     // Verify team belongs to this tournament

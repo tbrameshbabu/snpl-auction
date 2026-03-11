@@ -15,8 +15,11 @@ import {
   RotateCcw,
   Loader2,
   CheckCircle,
+  Search,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TeamLogo } from "@/components/team-logo";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +83,7 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
   const [error, setError] = useState("");
   const [teams, setTeams] = useState<TeamData[]>([]);
   const [allPlayers, setAllPlayers] = useState<PlayerData[]>([]);
+  const [availablePlayers, setAvailablePlayers] = useState<PlayerData[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [currentBid, setCurrentBid] = useState(0);
   const [leadingTeamId, setLeadingTeamId] = useState<string | null>(null);
@@ -92,6 +96,7 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
   const [submitting, setSubmitting] = useState(false);
   const [soldCount, setSoldCount] = useState(0);
   const [unsoldCount, setUnsoldCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   /* ── fetch auction state ── */
   const fetchAuctionState = useCallback(async () => {
@@ -132,46 +137,27 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
       setTeams(fetchedTeams);
 
       // Pending players — build the queue
-      // We look at tournament_players with status pending / re_auction
-      // The state endpoint returns the first one as currentPlayer
-      // We need the full list to track progress; fall back to fetching from teams page
       if (data.currentPlayer) {
-        // We have at least one pending player
+        // We have an active player
         setAllPlayers([data.currentPlayer]);
         setCurrentPlayerIndex(0);
         setCurrentBid(data.currentPlayer.base_price);
         setTimeLeft(15);
         setIsTimerRunning(true);
+        setAvailablePlayers([]); // Clear available list since we're in active bidding
       } else {
-        // No current player — check if auction needs to be seeded
-        const results = data.results || [];
-        if (results.length === 0 && tournamentId !== "demo") {
-          // Tournament is live but has no tournament_players — try to seed
-          try {
-            const startRes = await fetch(`/api/auction/${tournamentId}/start`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-            });
-            if (startRes.ok) {
-              // Re-fetch state after seeding
-              setLoading(true);
-              const retryRes = await fetch(`/api/auction/${tournamentId}/state`);
-              const retryData = await retryRes.json();
-              if (retryRes.ok && retryData.currentPlayer) {
-                setAllPlayers([retryData.currentPlayer]);
-                setCurrentPlayerIndex(0);
-                setCurrentBid(retryData.currentPlayer.base_price);
-                setTimeLeft(15);
-                setIsTimerRunning(true);
-                setLoading(false);
-                return;
-              }
-            }
-          } catch (seedErr) {
-            console.error("Failed to seed tournament players:", seedErr);
+        // No active player — let's fetch available players for manual selection
+        try {
+          const availRes = await fetch(`/api/auction/${tournamentId}/available-players`);
+          if (availRes.ok) {
+            const availData = await availRes.json();
+            setAvailablePlayers(availData.availablePlayers || []);
           }
+        } catch (availErr) {
+          console.error("Failed to fetch available players:", availErr);
         }
-        // No more pending players — auction is done
+        
+        // No more active players — clear current player state
         setAllPlayers([]);
       }
 
@@ -203,7 +189,7 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
 
   /* ── current player ── */
   const currentPlayer = allPlayers[0] || null;
-  const isAuctionOver = !currentPlayer && !loading;
+  const isAuctionOver = !currentPlayer && availablePlayers.length === 0 && !loading && soldCount + unsoldCount > 0;
 
   /* ── place bid (local only — auctioneer places bids on behalf of teams) ── */
   const handleTeamBid = useCallback(
@@ -405,6 +391,27 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
 
   const leadingTeam = teams.find((t) => t.id === leadingTeamId);
 
+  /* ── activate player ── */
+  const handleActivatePlayer = useCallback(async (playerId: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/auction/${tournamentId}/activate-player`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tournament_player_id: playerId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to activate player");
+      }
+      // Re-fetch state to start bidding
+      await fetchAuctionState();
+    } catch (err) {
+      console.error("Activate player error:", err);
+      setLoading(false);
+    }
+  }, [tournamentId, fetchAuctionState]);
+
   /* ─── Loading ─── */
   if (loading) {
     return (
@@ -482,7 +489,93 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
     );
   }
 
-  if (!currentPlayer) return null;
+  if (!currentPlayer) {
+    const filteredPlayers = availablePlayers.filter((tp) => {
+      const q = searchQuery.toLowerCase();
+      const nameMatch = tp.players?.name?.toLowerCase().includes(q);
+      const roleMatch = tp.players?.role?.replace('_', ' ').toLowerCase().includes(q);
+      return nameMatch || roleMatch;
+    });
+
+    return (
+      <div className="pb-24 flex flex-col px-4 pt-8 max-w-2xl mx-auto w-full">
+        <h2 className="text-xl font-bold mb-4 text-foreground flex items-center gap-2">
+          <Users className="h-5 w-5 text-gold" />
+          Select Next Player to Auction
+        </h2>
+        
+        {availablePlayers.length === 0 ? (
+          <div className="glass p-8 rounded-xl text-center">
+            <p className="text-muted-foreground text-sm">No players available to auction.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search players by name or role..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-9 bg-background/50 border-gold/30 focus-visible:ring-gold"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <XCircle className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {filteredPlayers.length === 0 ? (
+              <div className="glass p-8 rounded-xl text-center">
+                <p className="text-muted-foreground text-sm">No players found matching "{searchQuery}".</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredPlayers.map((tp) => (
+                  <div key={tp.id} className="glass rounded-xl p-4 flex items-center justify-between border-transparent hover:border-gold/30 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 bg-gold/10 border border-gold/20">
+                        {tp.players?.profile_image_url ? (
+                          <img
+                            src={tp.players.profile_image_url}
+                            alt={tp.players.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-lg font-bold text-gold">
+                            {tp.players?.name?.charAt(0) || "?"}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-foreground text-sm">{tp.players?.name}</h3>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 capitalize">
+                          {tp.players?.role.replace('_', ' ')} • Base: {tp.base_price} pts
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={() => handleActivatePlayer(tp.id)}
+                      className="bg-gold text-background hover:bg-gold/90 shrink-0 font-semibold"
+                      size="sm"
+                      disabled={loading}
+                    >
+                      <Gavel className="h-3.5 w-3.5 mr-1.5" />
+                      Start Auction
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const playerInfo = currentPlayer.players;
   const totalPending = allPlayers.filter(
