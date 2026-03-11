@@ -76,10 +76,15 @@ export default function PlayerDashboardPage() {
       setPlayer(profileData.player)
 
       // Fetch published tournaments
-      const tournamentsRes = await fetch('/api/auctioneers/tournaments?status=published')
+      const tournamentsRes = await fetch('/api/auctioneers/tournaments?status=published,live')
       const tournamentsData = await tournamentsRes.json()
       const fetchedTournaments = tournamentsData.tournaments || []
-      setTournaments(fetchedTournaments)
+      const sortedTournaments = fetchedTournaments.sort((a: Tournament, b: Tournament) => {
+        if (a.status === 'live' && b.status !== 'live') return -1
+        if (a.status !== 'live' && b.status === 'live') return 1
+        return new Date(a.auction_date).getTime() - new Date(b.auction_date).getTime()
+      })
+      setTournaments(sortedTournaments)
 
       // Auto-expand the first tournament
       if (fetchedTournaments.length > 0) {
@@ -420,8 +425,28 @@ export default function PlayerDashboardPage() {
                       </div>
                     </div>
 
+                    {/* Live Auction Block */}
+                    {tournament.status === 'live' && (
+                      <div className="flex flex-col gap-2 p-3 rounded-lg bg-neon/10 border border-neon/30 mb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="h-2 w-2 rounded-full bg-neon animate-pulse shrink-0" />
+                          <span className="text-sm font-bold text-neon uppercase tracking-wider">
+                            Auction is Live
+                          </span>
+                        </div>
+                        <Button
+                          size="lg"
+                          onClick={() => router.push(`/player/tournaments/${tournament.id}/auction`)}
+                          className="w-full bg-neon text-background hover:bg-neon/90 font-bold shadow-[0_0_15px_hsl(var(--neon)/0.2)]"
+                        >
+                          <Zap className="h-4 w-4 mr-2" />
+                          Watch Live Auction
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Interest Actions — matches player-interest-screen pattern */}
-                    {isPending && (
+                    {isPending && tournament.status !== 'live' && (
                       <div className="flex gap-2">
                         <Button
                           size="lg"
@@ -456,15 +481,17 @@ export default function PlayerDashboardPage() {
                             You have shown interest in this tournament
                           </span>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setShowWithdrawConfirm(tournament.id)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs self-start"
-                        >
-                          <XCircle className="h-3.5 w-3.5 mr-1" />
-                          Withdraw instead
-                        </Button>
+                        {tournament.status !== 'live' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setShowWithdrawConfirm(tournament.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs self-start"
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Withdraw instead
+                          </Button>
+                        )}
                       </div>
                     )}
 

@@ -65,7 +65,12 @@ interface BidEntry {
 
 type PlayerResult = "sold" | "unsold" | null;
 
-const BID_INCREMENT = 10;
+const getBidIncrement = (currentBid: number) => {
+  if (currentBid < 100) return 10;
+  if (currentBid < 300) return 20;
+  if (currentBid < 500) return 25;
+  return 50;
+};
 
 /* ─────────────────── Component ─────────────────── */
 
@@ -210,7 +215,7 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
       const newBid =
         leadingTeamId === null
           ? currentPlayer.base_price
-          : currentBid + BID_INCREMENT;
+          : currentBid + getBidIncrement(currentBid);
       const remainingBudget = team.budget - team.spent;
 
       if (newBid > remainingBudget) return;
@@ -678,10 +683,10 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
         </div>
       )}
 
-      {/* Team Bidding Table */}
+      {/* Team Bidding Grid & Auctioneer Controls */}
       {!showResult && (
-        <section className="px-4 mb-3 flex-1" aria-label="Team bidding controls">
-          <div className="flex items-center justify-between mb-2">
+        <section className="px-4 mb-3 flex-1 flex flex-col gap-3" aria-label="Team bidding controls">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-3.5 w-3.5 text-gold" />
               <h3 className="text-sm font-semibold text-foreground">
@@ -694,26 +699,18 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
               className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <RotateCcw className="h-3 w-3" />
-              Reset
+              Reset Bid
             </button>
           </div>
 
-          {/* Table Header */}
-          <div className="grid grid-cols-[1fr_70px_60px_70px] gap-1 px-3 py-2 text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">
-            <span>Team</span>
-            <span className="text-center">Budget</span>
-            <span className="text-center">Roster</span>
-            <span className="text-center">Action</span>
-          </div>
-
-          {/* Team Rows */}
-          <div className="flex flex-col gap-1.5">
+          {/* Team Grid */}
+          <div className="grid grid-cols-3 gap-2">
             {teams.map((team) => {
               const remainingBudget = team.budget - team.spent;
               const nextBidAmount =
                 leadingTeamId === null
                   ? currentPlayer.base_price
-                  : currentBid + BID_INCREMENT;
+                  : currentBid + getBidIncrement(currentBid);
               const canBid =
                 remainingBudget >= nextBidAmount &&
                 team.id !== leadingTeamId;
@@ -723,73 +720,62 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
                 <div
                   key={team.id}
                   className={cn(
-                    "glass rounded-lg grid grid-cols-[1fr_70px_60px_70px] gap-1 items-center px-3 py-2.5 transition-all duration-200",
-                    isLeading && "border-gold/40 bg-gold/5"
+                    "glass rounded-xl p-2.5 flex flex-col items-center text-center transition-all duration-300 relative overflow-hidden group hover:border-gold/30",
+                    isLeading && "border-gold bg-gold/5 shadow-[0_0_15px_hsl(var(--gold)/0.15)] ring-1 ring-gold"
                   )}
                 >
-                  {/* Team Info */}
-                  <div className="flex items-center gap-2 min-w-0">
+                  {/* Subtle color highlight at top */}
+                  <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: team.color || '#F4A261' }} />
+                  
+                  {isLeading && (
+                    <div className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-gold animate-pulse" />
+                  )}
+
+                  <div className="mt-1 mb-1.5 flex justify-center w-full">
                     <TeamLogo
                       logoUrl={team.logo_url}
                       shortName={team.short_name}
                       color={team.color}
-                      size="xs"
+                      size="sm"
                     />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-foreground truncate">
-                        {team.name}
-                      </p>
-                      {isLeading && (
-                        <span className="text-[9px] text-gold font-bold">
-                          Leading
-                        </span>
-                      )}
+                  </div>
+
+                  <h4 className="text-[10px] font-bold text-foreground leading-tight line-clamp-2 min-h-[1.75rem] mb-1 group-hover:text-gold transition-colors">
+                    {team.name}
+                  </h4>
+
+                  <div className="w-full bg-secondary/50 rounded flex justify-between px-1.5 py-1 mb-2">
+                    <div className="flex flex-col items-center">
+                      <span className="text-[8px] text-muted-foreground uppercase">Budget</span>
+                      <span className={cn(
+                        "text-[10px] font-black font-mono",
+                        remainingBudget < 200 ? "text-destructive" : "text-foreground"
+                      )}>{remainingBudget}</span>
+                    </div>
+                    <div className="w-[1px] bg-border/50" />
+                    <div className="flex flex-col items-center">
+                      <span className="text-[8px] text-muted-foreground uppercase">Roster</span>
+                      <span className="text-[10px] font-bold text-foreground">{team.num_players_bought}/{team.max_players}</span>
                     </div>
                   </div>
 
-                  {/* Budget */}
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-0.5">
-                      <Wallet className="h-3 w-3 text-muted-foreground" />
-                      <span
-                        className={cn(
-                          "text-xs font-bold font-mono",
-                          remainingBudget < 200
-                            ? "text-destructive"
-                            : "text-foreground"
-                        )}
-                      >
-                        {remainingBudget}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Roster */}
-                  <div className="text-center">
-                    <span className="text-xs font-mono text-foreground">
-                      {team.num_players_bought}/{team.max_players}
-                    </span>
-                  </div>
-
-                  {/* Bid Button */}
-                  <div className="flex justify-center">
+                  <div className="w-full mt-auto">
                     {isLeading ? (
-                      <span className="text-[9px] px-2 py-1 rounded-full bg-gold/15 text-gold font-bold">
-                        TOP
-                      </span>
+                      <div className="h-7 w-full rounded flex items-center justify-center bg-gold/15 text-gold text-[10px] font-black border border-gold/30 uppercase tracking-wider">
+                        Leading
+                      </div>
                     ) : !canBid ? (
-                      <span className="text-[9px] text-muted-foreground">
-                        {remainingBudget < nextBidAmount ? "Low" : "—"}
-                      </span>
+                      <div className="h-7 w-full rounded flex items-center justify-center bg-secondary text-muted-foreground text-[9px] font-medium border border-border/50">
+                        {remainingBudget < nextBidAmount ? "Low Budget" : "Out"}
+                      </div>
                     ) : (
                       <Button
                         size="sm"
                         onClick={() => handleTeamBid(team.id)}
                         disabled={submitting}
-                        className="h-7 px-3 text-[10px] bg-gold text-background hover:bg-gold/90 font-bold"
+                        className="h-7 w-full px-0 text-[10px] bg-gold text-background hover:bg-gold/90 font-black tracking-wide"
                       >
-                        <Gavel className="h-3 w-3 mr-1" />
-                        BID
+                        BID {nextBidAmount}
                       </Button>
                     )}
                   </div>
@@ -798,49 +784,42 @@ export function BiddingScreen({ tournamentId, onNavigate }: BiddingScreenProps) 
             })}
           </div>
 
-          <p className="text-[10px] text-muted-foreground text-center mt-2">
-            Each bid increments by +{BID_INCREMENT} pts from the current bid
+          <p className="text-[9px] text-muted-foreground text-center">
+            Next bid is +{getBidIncrement(currentBid)} pts
           </p>
-        </section>
-      )}
 
-      {/* Auctioneer Controls */}
-      {!showResult && (
-        <div className="px-4 mb-4">
-          <div className="glass rounded-xl p-3">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-semibold text-center">
-              Auctioneer Controls
-            </p>
-            <div className="grid grid-cols-2 gap-2">
+          {/* Auctioneer Controls Container */}
+          <div className="glass rounded-xl p-3 border-neon/20 bg-gradient-to-b from-background/50 to-neon/5 mt-2">
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 size="lg"
                 onClick={handleSold}
                 disabled={!leadingTeamId || submitting}
-                className="bg-neon text-background hover:bg-neon/90 font-bold disabled:opacity-40"
+                className="h-12 bg-neon text-background hover:bg-neon/90 font-black text-sm tracking-widest disabled:opacity-40 shadow-[0_4px_14px_hsl(var(--neon)/0.3)] transition-all active:scale-95"
               >
                 {submitting ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                 ) : (
-                  <Check className="h-4 w-4 mr-1.5" />
+                  <Check className="h-5 w-5 mr-2" />
                 )}
-                SOLD
+                SOLD FOR {currentBid}
               </Button>
               <Button
                 size="lg"
                 onClick={handleUnsold}
-                disabled={submitting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-bold"
+                disabled={submitting || !!leadingTeamId}
+                className="h-12 bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-sm tracking-widest disabled:opacity-40 shadow-[0_4px_14px_hsl(var(--destructive)/0.3)] transition-all active:scale-95"
               >
                 {submitting ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                 ) : (
-                  <X className="h-4 w-4 mr-1.5" />
+                  <X className="h-5 w-5 mr-2" />
                 )}
                 UNSOLD
               </Button>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Bid History */}

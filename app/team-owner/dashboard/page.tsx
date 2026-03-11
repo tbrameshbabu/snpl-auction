@@ -78,14 +78,20 @@ export default function TeamOwnerDashboardPage() {
   const fetchData = async () => {
     try {
       const [tournamentsRes, teamsRes, completedRes] = await Promise.all([
-        fetch('/api/auctioneers/tournaments?status=published'),
+        fetch('/api/auctioneers/tournaments?status=published,live'),
         fetch('/api/teams/register'),
         fetch('/api/teams/completed-tournaments'),
       ])
       const tournamentsData = await tournamentsRes.json()
       const teamsData = await teamsRes.json()
       const completedData = completedRes.ok ? await completedRes.json() : { tournaments: [] }
-      setTournaments(tournamentsData.tournaments || [])
+      const fetchedTournaments = tournamentsData.tournaments || []
+      const sortedTournaments = fetchedTournaments.sort((a: Tournament, b: Tournament) => {
+        if (a.status === 'live' && b.status !== 'live') return -1
+        if (a.status !== 'live' && b.status === 'live') return 1
+        return new Date(a.auction_date).getTime() - new Date(b.auction_date).getTime()
+      })
+      setTournaments(sortedTournaments)
       setMyTeams(teamsData.teams || [])
       setCompletedTournaments(completedData.tournaments || [])
     } catch (error) {
@@ -473,8 +479,28 @@ export default function TeamOwnerDashboardPage() {
                       </div>
                     </div>
 
+                    {/* Live Auction Block */}
+                    {tournament.status === 'live' && (
+                      <div className="flex flex-col gap-2 p-3 rounded-lg bg-neon/10 border border-neon/30 mb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="h-2 w-2 rounded-full bg-neon animate-pulse shrink-0" />
+                          <span className="text-sm font-bold text-neon uppercase tracking-wider">
+                            Auction is Live
+                          </span>
+                        </div>
+                        <Button
+                          size="lg"
+                          onClick={() => router.push(`/team-owner/tournaments/${tournament.id}/auction`)}
+                          className="w-full bg-neon text-background hover:bg-neon/90 font-bold shadow-[0_0_15px_hsl(var(--neon)/0.2)]"
+                        >
+                          <Zap className="h-4 w-4 mr-2" />
+                          Watch Live Auction
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Interest/Withdraw Actions */}
-                    {interest === 'pending' && (
+                    {interest === 'pending' && tournament.status !== 'live' && (
                       <div className="flex gap-2">
                         <Button
                           size="lg"
@@ -503,33 +529,33 @@ export default function TeamOwnerDashboardPage() {
 
                     {interest === 'interested' && (
                       <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-neon/10 border border-neon/20">
-                          <Check className="h-4 w-4 text-neon shrink-0" />
-                          <span className="text-sm font-medium text-neon">
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
+                          <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          <span className="text-sm font-medium text-green-500">
                             Your team is confirmed for this auction
                           </span>
                         </div>
 
                         {/* Team Logo Upload */}
-                        {team && (
+                        {myTeam && (
                           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-secondary/30">
                             <button
                               type="button"
                               onClick={() => {
-                                setUploadTeamId(team.id)
+                                setUploadTeamId(myTeam.id)
                                 fileInputRef.current?.click()
                               }}
-                              disabled={uploadingLogo === team.id}
+                              disabled={uploadingLogo === myTeam.id}
                               className="relative group"
                             >
                               <TeamLogo
-                                logoUrl={team.logo_url}
-                                shortName={team.short_name}
-                                color={team.color}
+                                logoUrl={myTeam.logo_url}
+                                shortName={myTeam.short_name}
+                                color={myTeam.color}
                                 size="lg"
                               />
                               <div className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                {uploadingLogo === team.id ? (
+                                {uploadingLogo === myTeam.id ? (
                                   <Loader2 className="h-5 w-5 text-white animate-spin" />
                                 ) : (
                                   <span className="text-white text-[9px] font-bold">CHANGE</span>
@@ -537,23 +563,25 @@ export default function TeamOwnerDashboardPage() {
                               </div>
                             </button>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-foreground">{team.name}</p>
+                              <p className="text-xs font-semibold text-foreground">{myTeam.name}</p>
                               <p className="text-[10px] text-muted-foreground">
-                                {team.logo_url ? 'Tap logo to change' : 'Tap to add team logo'}
+                                {myTeam.logo_url ? 'Tap logo to change' : 'Tap to add team logo'}
                               </p>
                             </div>
                           </div>
                         )}
 
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setShowWithdrawConfirm(tournament.id)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs self-start"
-                        >
-                          <XCircle className="h-3.5 w-3.5 mr-1" />
-                          Withdraw team
-                        </Button>
+                        {tournament.status !== 'live' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setShowWithdrawConfirm(tournament.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs self-start"
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Withdraw team
+                          </Button>
+                        )}
                       </div>
                     )}
 

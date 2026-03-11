@@ -398,6 +398,48 @@ export default function PublicTournamentDetailPage({
             </Button>
           )}
 
+          {/* Live Tournament Actions */}
+          {tournament.status === 'live' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-neon/10 border border-neon/30">
+                <span className="h-2 w-2 rounded-full bg-neon animate-pulse shrink-0" />
+                <span className="text-sm font-bold text-neon uppercase tracking-wider">
+                  Auction is Live
+                </span>
+              </div>
+              {user && role === 'team_owner' && (
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/team-owner/tournaments/${tournamentId}/auction`)}
+                  className="w-full bg-neon text-background hover:bg-neon/90 font-bold shadow-[0_0_15px_hsl(var(--neon)/0.2)]"
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Watch Live Auction
+                </Button>
+              )}
+              {user && role === 'player' && (
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/player/tournaments/${tournamentId}/auction`)}
+                  className="w-full bg-neon text-background hover:bg-neon/90 font-bold shadow-[0_0_15px_hsl(var(--neon)/0.2)]"
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Watch Live Auction
+                </Button>
+              )}
+              {!user && (
+                <Button
+                  size="lg"
+                  onClick={() => router.push('/auth/login')}
+                  className="w-full bg-neon text-background hover:bg-neon/90 font-bold shadow-[0_0_15px_hsl(var(--neon)/0.2)]"
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Login to Watch Live Auction
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Completed Tournament Actions */}
           {tournament.status === 'completed' && (
             <div className="flex flex-col gap-2">

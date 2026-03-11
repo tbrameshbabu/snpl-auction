@@ -313,10 +313,10 @@ export default function AuctionControlPage({
 
     /* ── Overview (default) ── */
     return (
-      <div className="pb-24">
+      <div className="pb-28">
         {/* Header */}
         <header className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--gold)/0.08),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--gold)/0.12),transparent_60%)]" />
           <div className="relative px-5 pt-6 pb-4">
             <div className="flex items-center gap-3 mb-2">
               <button
@@ -339,75 +339,21 @@ export default function AuctionControlPage({
           </div>
         </header>
 
-        {/* Tournament Info */}
+        {/* Stats Strip */}
         <section className="px-5 mb-4">
-          <div className="glass rounded-xl p-4">
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gold shrink-0" />
-                <span className="text-xs text-muted-foreground">
-                  {new Date(tournament.auction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { icon: Calendar, label: 'Date', value: new Date(tournament.auction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) },
+              { icon: Clock, label: 'Time', value: tournament.auction_time },
+              { icon: Shield, label: 'Teams', value: `${teams.length}/${tournament.num_teams}` },
+              { icon: Users, label: 'Players', value: `${players.length}` },
+            ].map((stat) => (
+              <div key={stat.label} className="glass rounded-xl p-3 text-center">
+                <stat.icon className="h-4 w-4 text-gold mx-auto mb-1" />
+                <p className="text-xs font-bold text-foreground">{stat.value}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">{stat.label}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gold shrink-0" />
-                <span className="text-xs text-muted-foreground">{tournament.auction_time}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-gold shrink-0" />
-                <span className="text-xs text-muted-foreground">
-                  {teams.length}/{tournament.num_teams}
-                </span>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            {tournament.status === 'published' && (
-              <>
-                {(teams.length === 0 || players.length === 0) && (
-                  <p className="text-xs text-destructive mb-2 text-center">
-                    {teams.length === 0 && players.length === 0
-                      ? 'Register teams and players before starting the auction'
-                      : teams.length === 0
-                        ? 'Register at least one team before starting'
-                        : 'At least one player must show interest before starting'}
-                  </p>
-                )}
-                <Button
-                  size="lg"
-                  onClick={handleStartAuction}
-                  disabled={startingAuction || teams.length === 0 || players.length === 0}
-                  className="w-full bg-neon text-background hover:bg-neon/90 font-semibold disabled:opacity-50"
-                >
-                  {startingAuction ? (
-                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4 mr-1.5" />
-                  )}
-                  {startingAuction ? 'Starting...' : 'Start Auction'}
-                </Button>
-              </>
-            )}
-            {tournament.status === 'live' && (
-              <Button
-                size="lg"
-                onClick={() => setScreen('bidding')}
-                className="w-full bg-neon text-background hover:bg-neon/90 font-semibold"
-              >
-                <Zap className="h-4 w-4 mr-1.5" />
-                Go to Live Auction
-              </Button>
-            )}
-            {tournament.status === 'completed' && (
-              <Button
-                size="lg"
-                onClick={() => setScreen('results')}
-                className="w-full bg-gold text-background hover:bg-gold/90 font-semibold"
-              >
-                <Trophy className="h-4 w-4 mr-1.5" />
-                View Results
-              </Button>
-            )}
+            ))}
           </div>
         </section>
 
@@ -444,7 +390,7 @@ export default function AuctionControlPage({
         </div>
 
         {/* Content */}
-        <section className="px-5 flex flex-col gap-3" aria-label={activeTab === 'teams' ? 'Teams' : 'Players'}>
+        <section className="px-5" aria-label={activeTab === 'teams' ? 'Teams' : 'Players'}>
           {activeTab === 'teams' ? (
             teams.length === 0 ? (
               <div className="glass rounded-xl p-8 text-center">
@@ -453,57 +399,39 @@ export default function AuctionControlPage({
                 <p className="text-xs text-muted-foreground/70 mt-1">Teams will appear here once they register</p>
               </div>
             ) : (
-              teams.map((team) => {
-                const isExpanded = expandedTeam === team.id
-                return (
-                  <div key={team.id} className="glass rounded-xl overflow-hidden transition-all duration-300">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedTeam(isExpanded ? null : team.id)}
-                      className="w-full p-4 flex items-center gap-3 text-left"
-                    >
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {teams.map((team) => (
+                  <div
+                    key={team.id}
+                    className="glass rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:border-gold/20 group"
+                  >
+                    {/* Color accent bar */}
+                    <div className="h-1.5" style={{ background: `linear-gradient(90deg, ${team.color || '#F4A261'}, ${team.color || '#F4A261'}88)` }} />
+                    <div className="p-4 flex flex-col items-center text-center">
+                      {/* Team badge */}
                       <div
-                        className="h-11 w-11 rounded-lg flex items-center justify-center shrink-0 text-sm font-bold"
-                        style={{ backgroundColor: `${team.color || '#F4A261'}20`, color: team.color || '#F4A261' }}
+                        className="h-14 w-14 rounded-xl flex items-center justify-center text-base font-extrabold mb-3 shadow-lg transition-transform group-hover:scale-110"
+                        style={{
+                          backgroundColor: `${team.color || '#F4A261'}20`,
+                          color: team.color || '#F4A261',
+                          border: `2px solid ${team.color || '#F4A261'}40`,
+                        }}
                       >
                         {team.short_name || team.name.charAt(0)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-foreground truncate">{team.name}</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {team.users?.email || team.owner_name} · {team.budget} pts
-                        </p>
+                      <h4 className="text-sm font-bold text-foreground truncate w-full">{team.name}</h4>
+                      <p className="text-[10px] text-muted-foreground mt-1 truncate w-full">
+                        {team.users?.email || team.owner_name}
+                      </p>
+                      {/* Budget chip */}
+                      <div className="mt-3 flex items-center gap-1.5 bg-gold/10 rounded-lg px-3 py-1.5">
+                        <Wallet className="h-3.5 w-3.5 text-gold" />
+                        <span className="text-xs font-bold text-gold">{team.budget} pts</span>
                       </div>
-                      <ChevronRight className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                        isExpanded && "rotate-90"
-                      )} />
-                    </button>
-                    {isExpanded && (
-                      <div className="px-4 pb-4 animate-slide-in-right">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
-                            <Wallet className="h-4 w-4 text-gold shrink-0" />
-                            <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Budget</p>
-                              <p className="text-sm font-bold text-foreground">{team.budget} pts</p>
-                            </div>
-                          </div>
-                          <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-gold shrink-0" />
-                            <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Registered</p>
-                              <p className="text-sm font-bold text-foreground">
-                                {new Date(team.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                )
-              })
+                ))}
+              </div>
             )
           ) : (
             players.length === 0 ? (
@@ -516,7 +444,7 @@ export default function AuctionControlPage({
               <>
                 {/* Reorder controls */}
                 {tournament.status !== 'live' && tournament.status !== 'completed' && (
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-3">
                     <p className="text-[11px] text-muted-foreground">
                       <GripVertical className="h-3 w-3 inline mr-1" />
                       Drag or use arrows to set auction order
@@ -546,80 +474,140 @@ export default function AuctionControlPage({
                   </div>
                 )}
 
-                {players.map((player, i) => (
-                  <div
-                    key={player.id}
-                    draggable={tournament.status !== 'live' && tournament.status !== 'completed'}
-                    onDragStart={() => handleDragStart(i)}
-                    onDragOver={(e) => handleDragOver(e, i)}
-                    onDragEnd={handleDragEnd}
-                    className={cn(
-                      'glass rounded-xl p-3 flex items-center gap-2 transition-all cursor-grab active:cursor-grabbing',
-                      dragIndex === i && 'opacity-50 scale-[0.98] border border-gold/30'
-                    )}
-                  >
-                    {/* Drag handle + order number */}
-                    <div className="flex flex-col items-center gap-0.5 shrink-0 w-7">
-                      {tournament.status !== 'live' && tournament.status !== 'completed' && (
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
+                {/* Player grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {players.map((player, i) => (
+                    <div
+                      key={player.id}
+                      draggable={tournament.status !== 'live' && tournament.status !== 'completed'}
+                      onDragStart={() => handleDragStart(i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        'glass rounded-xl p-3 flex items-center gap-2.5 transition-all hover:border-gold/20',
+                        tournament.status !== 'live' && tournament.status !== 'completed' && 'cursor-grab active:cursor-grabbing',
+                        dragIndex === i && 'opacity-50 scale-[0.98] border border-gold/30'
                       )}
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        #{i + 1}
-                      </span>
-                    </div>
-
-                    {/* Player avatar */}
-                    {player.profile_image_url ? (
-                      <img src={player.profile_image_url} alt={player.name} className="h-10 w-10 rounded-lg object-cover shrink-0" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
-                        <User className="h-5 w-5 text-gold" />
-                      </div>
-                    )}
-
-                    {/* Player info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-semibold text-foreground truncate">{player.name}</h4>
-                        {getRoleBadge(player.role)}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] text-muted-foreground">
-                          Base: <span className="font-bold text-gold">{player.base_points}</span>
+                    >
+                      {/* Order number / drag handle */}
+                      <div className="flex flex-col items-center gap-0.5 shrink-0 w-6">
+                        {tournament.status !== 'live' && tournament.status !== 'completed' && (
+                          <GripVertical className="h-3 w-3 text-muted-foreground/30" />
+                        )}
+                        <span className="text-[9px] font-mono text-muted-foreground/60">
+                          #{i + 1}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">M: {player.matches_played}</span>
-                        <span className="text-[10px] text-muted-foreground">R: {player.runs_scored}</span>
-                        <span className="text-[10px] text-muted-foreground">W: {player.wickets_taken}</span>
                       </div>
-                    </div>
 
-                    {/* Up/Down arrows */}
-                    {tournament.status !== 'live' && tournament.status !== 'completed' && (
-                      <div className="flex flex-col gap-0.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); movePlayer(i, i - 1) }}
-                          disabled={i === 0}
-                          className="h-6 w-6 rounded flex items-center justify-center hover:bg-secondary/80 disabled:opacity-20 transition-colors"
-                        >
-                          <ArrowUp className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); movePlayer(i, i + 1) }}
-                          disabled={i === players.length - 1}
-                          className="h-6 w-6 rounded flex items-center justify-center hover:bg-secondary/80 disabled:opacity-20 transition-colors"
-                        >
-                          <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
+                      {/* Avatar */}
+                      {player.profile_image_url ? (
+                        <img src={player.profile_image_url} alt={player.name} className="h-9 w-9 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <div className="h-9 w-9 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
+                          <User className="h-4 w-4 text-gold" />
+                        </div>
+                      )}
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs font-semibold text-foreground truncate">{player.name}</h4>
+                          {getRoleBadge(player.role)}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[9px] text-gold font-bold">{player.base_points} pts</span>
+                          <span className="text-[9px] text-muted-foreground">M:{player.matches_played}</span>
+                          <span className="text-[9px] text-muted-foreground">R:{player.runs_scored}</span>
+                          <span className="text-[9px] text-muted-foreground">W:{player.wickets_taken}</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {/* Up/Down arrows */}
+                      {tournament.status !== 'live' && tournament.status !== 'completed' && (
+                        <div className="flex flex-col gap-0.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); movePlayer(i, i - 1) }}
+                            disabled={i === 0}
+                            className="h-5 w-5 rounded flex items-center justify-center hover:bg-secondary/80 disabled:opacity-20 transition-colors"
+                          >
+                            <ArrowUp className="h-3 w-3 text-muted-foreground" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); movePlayer(i, i + 1) }}
+                            disabled={i === players.length - 1}
+                            className="h-5 w-5 rounded flex items-center justify-center hover:bg-secondary/80 disabled:opacity-20 transition-colors"
+                          >
+                            <ArrowDown className="h-3 w-3 text-muted-foreground" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </>
             )
           )}
         </section>
+
+        {/* Sticky bottom action bar */}
+        {tournament.status === 'published' && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-gold/20">
+            <div className="max-w-lg mx-auto px-5 py-3">
+              {(teams.length === 0 || players.length === 0) && (
+                <p className="text-[10px] text-destructive text-center mb-2">
+                  {teams.length === 0 && players.length === 0
+                    ? 'Register teams and players first'
+                    : teams.length === 0
+                      ? 'Register at least one team'
+                      : 'At least one player must show interest'}
+                </p>
+              )}
+              <Button
+                size="lg"
+                onClick={handleStartAuction}
+                disabled={startingAuction || teams.length === 0 || players.length === 0}
+                className="w-full bg-neon text-background hover:bg-neon/90 font-bold text-base disabled:opacity-50 shadow-[0_0_20px_hsl(var(--neon)/0.3)]"
+              >
+                {startingAuction ? (
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                ) : (
+                  <Play className="h-5 w-5 mr-2" />
+                )}
+                {startingAuction ? 'Starting Auction...' : 'Start Auction'}
+              </Button>
+            </div>
+          </div>
+        )}
+        {tournament.status === 'live' && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-neon/20">
+            <div className="max-w-lg mx-auto px-5 py-3">
+              <Button
+                size="lg"
+                onClick={() => setScreen('bidding')}
+                className="w-full bg-neon text-background hover:bg-neon/90 font-bold text-base shadow-[0_0_20px_hsl(var(--neon)/0.3)]"
+              >
+                <Zap className="h-5 w-5 mr-2" />
+                Go to Live Auction
+              </Button>
+            </div>
+          </div>
+        )}
+        {tournament.status === 'completed' && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-gold/20">
+            <div className="max-w-lg mx-auto px-5 py-3">
+              <Button
+                size="lg"
+                onClick={() => setScreen('results')}
+                className="w-full bg-gold text-background hover:bg-gold/90 font-bold text-base shadow-[0_0_20px_hsl(var(--gold)/0.3)]"
+              >
+                <Trophy className="h-5 w-5 mr-2" />
+                View Results
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

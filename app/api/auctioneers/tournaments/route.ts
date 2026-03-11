@@ -81,7 +81,11 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
 
     if (status) {
-      query = query.eq('status', status)
+      if (status.includes(',')) {
+        query = query.in('status', status.split(','))
+      } else {
+        query = query.eq('status', status)
+      }
     }
 
     const { data: tournaments, error } = await query
