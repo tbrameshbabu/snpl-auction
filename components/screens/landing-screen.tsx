@@ -32,7 +32,7 @@ interface Tournament {
 
 export function LandingScreen({ onNavigate }: LandingScreenProps) {
   const router = useRouter()
-  const [role, setRole] = useState<"player" | "manager">("player");
+  const [role, setRole] = useState<"player" | "manager" | "auctioneer">("player");
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -67,12 +67,10 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
         <div className="relative px-5 pt-6 pb-6">
 
           <h2 className="text-3xl md:text-4xl font-bold leading-tight text-balance text-foreground mb-3">
-            Build Your
-            <span className="text-gold"> Dream Team</span> in Real-Time
+            களமிறங்குறோம், <span className="text-gold">கலக்குறோம்!</span>
           </h2>
           <p className="text-muted-foreground text-sm leading-relaxed max-w-md mb-8">
-            The ultimate sports auction platform. Bid on players, manage your
-            roster, and compete to win.
+            கிரிக்கெட் ஹீரோக்களே, களத்தில் இறங்கத் தயாரா? சிறந்த வீரர்களை ஏலம் எடுத்து, உங்கள் கனவு அணியை உருவாக்குங்கள், வெற்றியை கொண்டாடுங்கள்!
           </p>
 
           {/* Role Toggle */}
@@ -115,7 +113,7 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
               }}
               className="bg-gold text-background hover:bg-gold/90 font-semibold w-full animate-pulse-gold"
             >
-              {role === "player" ? "Register Now" : "Register as Team Owner"}
+              {role === "player" ? "Register Now" : role === "manager" ? "Register as Team Owner" : "Register as Auctioneer"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
             {role === "player" && (
@@ -130,6 +128,17 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
               </Button>
             )}
             {role === "manager" && (
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => window.location.href = "/auth/login"}
+                className="w-full border-gold/30 text-gold hover:bg-gold/10 hover:text-gold font-semibold bg-transparent"
+              >
+                Already Registered? Login
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            )}
+            {role === "auctioneer" && (
               <Button
                 size="lg"
                 variant="outline"

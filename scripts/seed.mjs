@@ -1,5 +1,5 @@
 /**
- * Seed Script for SNPL Auction App
+ * Seed Script for SNBPL Auction App
  * 
  * Creates sample data:
  * - 1 Auctioneer user with a published tournament
@@ -87,12 +87,12 @@ const PASSWORD = 'Test@123'
 const AUCTIONEER = {
   email: 'auctioneer@snpl.com',
   name: 'Vikram Singh',
-  organization: 'SNPL Cricket League',
+  organization: 'SNBPL Cricket League',
   phone: '9876543210',
 }
 
 const TOURNAMENT = {
-  title: 'SNPL Premier League 2026',
+  title: 'SNBPL Premier League 2026',
   description: 'The biggest cricket auction of the season! 6 teams battle it out to build their dream squad. Show your interest now to be part of the action.',
   auction_date: '2026-03-15',
   auction_time: '18:00:00',
@@ -121,7 +121,7 @@ const PLAYERS = [
 
 // ─── MAIN SEED FUNCTION ─────────────────────────────────
 async function seed() {
-  console.log('🌱 Starting SNPL Auction seed...\n')
+  console.log('🌱 Starting SNBPL Auction seed...\n')
 
   // ── 1. Create Auctioneer ─────────────────────
   console.log('👤 Creating Auctioneer...')
@@ -251,7 +251,7 @@ async function seed() {
   console.log('  Players:')
   PLAYERS.forEach(p => console.log(`    ${p.email} → ${p.name} (${p.role})`))
   console.log()
-  console.log('  Tournament: SNPL Premier League 2026')
+  console.log('  Tournament: SNBPL Premier League 2026')
   console.log('    Date: March 15, 2026 at 6:00 PM')
   console.log('    Status: Published')
   console.log()
