@@ -70,8 +70,8 @@ type PlayerResult = "sold" | "unsold" | null;
 
 const getBidIncrement = (currentBid: number) => {
   if (currentBid < 100) return 10;
-  if (currentBid < 300) return 20;
-  if (currentBid < 500) return 25;
+  if (currentBid < 200) return 20;
+  if (currentBid < 500) return 30;
   return 50;
 };
 

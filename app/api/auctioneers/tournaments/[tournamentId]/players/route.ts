@@ -70,6 +70,7 @@ export async function GET(
     // Transform the data to flatten player info
     const players = interests?.map(interest => ({
       ...interest.players,
+      interest_id: interest.id,
       interest_status: interest.status,
       order_index: orderMap.get((interest.players as any)?.id) ?? 999,
     })) || []

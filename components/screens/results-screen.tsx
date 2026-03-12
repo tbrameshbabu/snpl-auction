@@ -12,6 +12,7 @@ import {
   ChevronUp,
   Loader2,
   ArrowLeft,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,7 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [totalSold, setTotalSold] = useState(0);
   const [totalUnsold, setTotalUnsold] = useState(0);
+  const [tournamentTitle, setTournamentTitle] = useState("");
 
   /* ── fetch results ── */
   const fetchResults = useCallback(async () => {
@@ -97,6 +99,7 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
 
       const sales: SaleData[] = data.results || [];
       const teams: TeamData[] = data.teams || [];
+      if (data.tournament?.title) setTournamentTitle(data.tournament.title);
 
       const sold = sales.filter((s) => s.status === "sold");
       const unsold = sales.filter((s) => s.status === "unsold");
@@ -196,12 +199,41 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
           >
             <ArrowLeft className="h-4 w-4 text-muted-foreground" />
           </button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground">Results</h1>
             <p className="text-xs text-muted-foreground">
               {totalSold} sold · {totalUnsold} unsold
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              const title = tournamentTitle || 'SNBPL Auction';
+              let msg = `🏏 *${title} - Results*\n`;
+              msg += `━━━━━━━━━━━━━━━━━━\n`;
+              msg += `✅ ${totalSold} Sold · ❌ ${totalUnsold} Unsold\n\n`;
+              leaderboard.forEach((team) => {
+                msg += `🏆 *#${team.rank} ${team.name}*\n`;
+                msg += `💰 Spent: ${team.spent} pts | Remaining: ${team.budget - team.spent} pts\n`;
+                if (team.roster.length > 0) {
+                  team.roster.forEach((p) => {
+                    msg += `   👤 ${p.name} (${p.role}) — ${p.cost} pts\n`;
+                  });
+                } else {
+                  msg += `   No players bought\n`;
+                }
+                msg += `\n`;
+              });
+              msg += `━━━━━━━━━━━━━━━━━━\n`;
+              msg += `Powered by SNBPL Auction 🏏`;
+              const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+              window.open(url, '_blank');
+            }}
+            className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0 hover:bg-gold/10 transition-colors"
+            title="Share via WhatsApp"
+          >
+            <Share2 className="h-4 w-4 text-gold" />
+          </button>
         </div>
       </header>
 

@@ -23,6 +23,9 @@ import {
   UserCheck,
   UsersRound,
 } from 'lucide-react'
+import { TeamEditModal } from '@/components/team-edit-modal'
+import { TeamOwnerEditProfileModal } from '@/components/team-owner-edit-profile-modal'
+import { TeamJoinModal } from '@/components/team-join-modal'
 
 interface Tournament {
   id: string
@@ -57,12 +60,24 @@ export default function TeamOwnerDashboardPage() {
   const [myTeams, setMyTeams] = useState<TeamRegistration[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(null)
-  const [joining, setJoining] = useState<string | null>(null)
+  const [joinModalTournamentId, setJoinModalTournamentId] = useState<string | null>(null)
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
   const [completedTournaments, setCompletedTournaments] = useState<any[]>([])
   const [uploadingLogo, setUploadingLogo] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [uploadTeamId, setUploadTeamId] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string>('')
+
+  // Derive display name from user metadata or email prefix
+  useEffect(() => {
+    if (user) {
+      setDisplayName(
+        (user.user_metadata?.full_name as string) ||
+        user.email?.split('@')[0] ||
+        'Manager'
+      )
+    }
+  }, [user])
 
   useEffect(() => {
     if (!authLoading && (!user || role !== 'team_owner')) {
@@ -106,61 +121,60 @@ export default function TeamOwnerDashboardPage() {
     return myTeams.find(t => t.tournament_id === tournamentId)
   }
 
-  const getInterestStatus = (tournamentId: string): 'pending' | 'interested' | 'withdrawn' => {
+  const getInterestStatus = (tournamentId: string): 'none' | 'pending' | 'approved' | 'withdrawn' | 'rejected' => {
     const team = getTeamForTournament(tournamentId)
-    if (!team) return 'pending'
+    if (!team) return 'none'
     if (team.status === 'withdrawn') return 'withdrawn'
-    return 'interested' // confirmed or interested both count
+    if (team.status === 'approved') return 'approved'
+    if (team.status === 'rejected') return 'rejected'
+    if (team.status === 'pending') return 'pending'
+    return 'pending' // fallback for legacy statuses
   }
 
-  const handleJoinAuction = async (tournamentId: string) => {
-    setJoining(tournamentId)
-    try {
-      const response = await fetch('/api/teams/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tournament_id: tournamentId,
-          name: `Team ${user?.email?.split('@')[0] || 'Owner'}`,
-          short_name: (user?.email?.slice(0, 3) || 'OWN').toUpperCase(),
-          color: '#F4A261',
-        }),
-      })
+  const handleJoinAuction = async ({
+    tournament_id,
+    name,
+    short_name,
+    color,
+    logoFile,
+  }: {
+    tournament_id: string
+    name: string
+    short_name: string
+    color: string
+    logoFile: File | null
+  }) => {
+    // Step 1: Register the team
+    const response = await fetch('/api/teams/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tournament_id, name, short_name, color }),
+    })
 
-      if (response.ok) {
-        await fetchData()
-      } else {
-        const err = await response.json()
-        console.error('Failed to join:', err)
-      }
-    } catch (error) {
-      console.error('Error joining auction:', error)
-    } finally {
-      setJoining(null)
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Failed to join auction')
+
+    // Step 2: Upload logo if provided
+    if (logoFile && data.team?.id) {
+      const uploadForm = new FormData()
+      uploadForm.append('file', logoFile)
+      uploadForm.append('team_id', data.team.id)
+      await fetch('/api/teams/upload-logo', { method: 'POST', body: uploadForm })
     }
+
+    setJoinModalTournamentId(null)
+    await fetchData()
   }
 
   const handleWithdraw = async (tournamentId: string) => {
     setWithdrawing(tournamentId)
     setShowWithdrawConfirm(null)
     try {
-      const team = getTeamForTournament(tournamentId)
-      if (!team) return
-
-      // Update team status to withdrawn
-      const response = await fetch('/api/teams/register', {
+      await fetch('/api/teams/withdraw', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tournament_id: tournamentId,
-          name: team.name,
-          short_name: team.short_name,
-          color: team.color,
-          status: 'withdrawn',
-        }),
+        body: JSON.stringify({ tournament_id: tournamentId }),
       })
-
-      // Refetch regardless (the team status change is server-side)
       await fetchData()
     } catch (error) {
       console.error('Error withdrawing:', error)
@@ -232,7 +246,8 @@ export default function TeamOwnerDashboardPage() {
     }
   }
 
-  const joinedCount = myTeams.filter(t => t.status !== 'withdrawn').length
+  const approvedTeamCount = myTeams.filter(t => t.status === 'approved').length
+  const pendingTeamCount = myTeams.filter(t => t.status === 'pending').length
   const withdrawnCount = myTeams.filter(t => t.status === 'withdrawn').length
 
   if (authLoading || loading) {
@@ -266,11 +281,17 @@ export default function TeamOwnerDashboardPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">
-                Welcome back, Manager
+                Welcome back, {displayName}
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Manage your team auction participation
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-xs text-muted-foreground">
+                  Manage your team auction participation
+                </p>
+                <TeamOwnerEditProfileModal
+                  displayName={displayName}
+                  onUpdate={(newName) => setDisplayName(newName)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -289,16 +310,16 @@ export default function TeamOwnerDashboardPage() {
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
             <Check className="h-4 w-4 text-neon" />
             <span className="text-lg font-bold text-neon">
-              {joinedCount}
+              {approvedTeamCount}
             </span>
-            <span className="text-[10px] text-muted-foreground">Joined</span>
+            <span className="text-[10px] text-muted-foreground">Approved</span>
           </div>
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
-            <XCircle className="h-4 w-4 text-destructive" />
-            <span className="text-lg font-bold text-destructive">
-              {withdrawnCount}
+            <Clock className="h-4 w-4 text-amber-400" />
+            <span className="text-lg font-bold text-amber-400">
+              {pendingTeamCount}
             </span>
-            <span className="text-[10px] text-muted-foreground">Withdrawn</span>
+            <span className="text-[10px] text-muted-foreground">Pending</span>
           </div>
         </div>
       </section>
@@ -345,8 +366,9 @@ export default function TeamOwnerDashboardPage() {
                 key={tournament.id}
                 className={cn(
                   "glass rounded-xl overflow-hidden transition-all duration-300",
-                  interest === 'interested' && "border-neon/40",
-                  interest === 'withdrawn' && "border-destructive/30 opacity-60",
+                  interest === 'approved' && "border-neon/40",
+                  interest === 'pending' && "border-amber-500/30",
+                  (interest === 'withdrawn' || interest === 'rejected') && "border-destructive/30 opacity-60",
                 )}
               >
                 {/* Card Header */}
@@ -358,16 +380,20 @@ export default function TeamOwnerDashboardPage() {
                   <div
                     className={cn(
                       "h-11 w-11 rounded-lg flex items-center justify-center shrink-0",
-                      interest === 'interested'
+                      interest === 'approved'
                         ? "bg-neon/15"
-                        : interest === 'withdrawn'
-                          ? "bg-destructive/15"
-                          : "bg-gold/10"
+                        : interest === 'pending'
+                          ? "bg-amber-500/15"
+                          : interest === 'withdrawn' || interest === 'rejected'
+                            ? "bg-destructive/15"
+                            : "bg-gold/10"
                     )}
                   >
-                    {interest === 'interested' ? (
+                    {interest === 'approved' ? (
                       <Check className="h-5 w-5 text-neon" />
-                    ) : interest === 'withdrawn' ? (
+                    ) : interest === 'pending' ? (
+                      <Clock className="h-5 w-5 text-amber-400" />
+                    ) : interest === 'withdrawn' || interest === 'rejected' ? (
                       <XCircle className="h-5 w-5 text-destructive" />
                     ) : (
                       <Trophy className="h-5 w-5 text-gold" />
@@ -500,20 +526,15 @@ export default function TeamOwnerDashboardPage() {
                     )}
 
                     {/* Interest/Withdraw Actions */}
-                    {interest === 'pending' && tournament.status !== 'live' && (
+                    {interest === 'none' && tournament.status !== 'live' && (
                       <div className="flex gap-2">
                         <Button
                           size="lg"
-                          onClick={() => handleJoinAuction(tournament.id)}
-                          disabled={joining === tournament.id}
+                          onClick={() => setJoinModalTournamentId(tournament.id)}
                           className="flex-1 bg-neon text-background hover:bg-neon/90 font-semibold"
                         >
-                          {joining === tournament.id ? (
-                            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                          ) : (
-                            <Check className="h-4 w-4 mr-1.5" />
-                          )}
-                          {joining === tournament.id ? 'Joining...' : 'Join Auction'}
+                          <Check className="h-4 w-4 mr-1.5" />
+                          Join Auction
                         </Button>
                         <Button
                           size="lg"
@@ -527,12 +548,52 @@ export default function TeamOwnerDashboardPage() {
                       </div>
                     )}
 
-                    {interest === 'interested' && (
+                    {interest === 'pending' && (
                       <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
-                          <Check className="h-4 w-4 text-green-500 shrink-0" />
-                          <span className="text-sm font-medium text-green-500">
-                            Your team is confirmed for this auction
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                          <Clock className="h-4 w-4 text-amber-400 shrink-0" />
+                          <span className="text-sm font-medium text-amber-400">
+                            Awaiting auctioneer approval
+                          </span>
+                        </div>
+                        {myTeam && (
+                          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-secondary/30">
+                            <TeamLogo
+                              logoUrl={myTeam.logo_url}
+                              shortName={myTeam.short_name}
+                              color={myTeam.color}
+                              size="lg"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-foreground">
+                                {myTeam.name}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                Pending approval
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        {tournament.status !== 'live' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setShowWithdrawConfirm(tournament.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs self-start"
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Withdraw team
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {interest === 'approved' && (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-neon/10 border border-neon/20">
+                          <Check className="h-4 w-4 text-neon shrink-0" />
+                          <span className="text-sm font-medium text-neon">
+                            Your team is approved for this auction
                           </span>
                         </div>
 
@@ -563,8 +624,11 @@ export default function TeamOwnerDashboardPage() {
                               </div>
                             </button>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-foreground">{myTeam.name}</p>
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-xs font-semibold text-foreground">
+                                {myTeam.name}
+                                <TeamEditModal team={myTeam} onUpdate={fetchData} />
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
                                 {myTeam.logo_url ? 'Tap logo to change' : 'Tap to add team logo'}
                               </p>
                             </div>
@@ -585,23 +649,27 @@ export default function TeamOwnerDashboardPage() {
                       </div>
                     )}
 
-                    {interest === 'withdrawn' && (
+                    {(interest === 'withdrawn' || interest === 'rejected') && (
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20">
                           <XCircle className="h-4 w-4 text-destructive shrink-0" />
                           <span className="text-sm font-medium text-destructive">
-                            Your team has withdrawn from this auction
+                            {interest === 'rejected'
+                              ? 'Your team registration was rejected'
+                              : 'Your team has withdrawn from this auction'}
                           </span>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleJoinAuction(tournament.id)}
-                          className="text-neon hover:text-neon hover:bg-neon/10 text-xs self-start"
-                        >
-                          <Check className="h-3.5 w-3.5 mr-1" />
-                          Re-join auction
-                        </Button>
+                        {tournament.status !== 'live' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setJoinModalTournamentId(tournament.id)}
+                            className="text-neon hover:text-neon hover:bg-neon/10 text-xs self-start"
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1" />
+                            Re-join auction
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -734,6 +802,25 @@ export default function TeamOwnerDashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Team Join Modal */}
+      {joinModalTournamentId && (() => {
+        const t = tournaments.find(t => t.id === joinModalTournamentId)
+        if (!t) return null
+        const defaultName = `Team ${user?.email?.split('@')[0] || 'Owner'}`
+        const defaultShort = (user?.email?.slice(0, 3) || 'OWN').toUpperCase()
+        return (
+          <TeamJoinModal
+            tournamentTitle={t.title}
+            tournamentId={t.id}
+            defaultName={defaultName}
+            defaultShortName={defaultShort}
+            open={true}
+            onOpenChange={(open) => { if (!open) setJoinModalTournamentId(null) }}
+            onJoin={handleJoinAuction}
+          />
+        )
+      })()}
     </div>
   )
 }

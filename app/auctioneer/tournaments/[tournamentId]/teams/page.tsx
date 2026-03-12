@@ -13,7 +13,9 @@ import {
   Shield,
   Wallet,
   Calendar,
-  Zap,
+  Clock,
+  Check,
+  X,
 } from 'lucide-react'
 
 interface Team {
@@ -42,6 +44,7 @@ export default function TournamentTeamsPage({
   const [teams, setTeams] = useState<Team[]>([])
   const [tournament, setTournament] = useState<any>(null)
   const [error, setError] = useState('')
+  const [approving, setApproving] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!user || role !== 'auctioneer')) {
@@ -49,36 +52,54 @@ export default function TournamentTeamsPage({
     }
   }, [user, role, authLoading, router])
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const tournamentRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}`)
-        const tournamentData = await tournamentRes.json()
+  const fetchData = async () => {
+    try {
+      const tournamentRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}`)
+      const tournamentData = await tournamentRes.json()
 
-        if (!tournamentRes.ok) {
-          setError(tournamentData.error || 'Failed to load tournament')
-          setLoading(false)
-          return
-        }
-
-        setTournament(tournamentData.tournament)
-
-        const teamsRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}/teams`)
-        const teamsData = await teamsRes.json()
-
-        if (teamsRes.ok) {
-          setTeams(teamsData.teams || [])
-        }
-
+      if (!tournamentRes.ok) {
+        setError(tournamentData.error || 'Failed to load tournament')
         setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
-        setLoading(false)
+        return
       }
-    }
 
+      setTournament(tournamentData.tournament)
+
+      const teamsRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}/teams`)
+      const teamsData = await teamsRes.json()
+
+      if (teamsRes.ok) {
+        setTeams(teamsData.teams || [])
+      }
+
+      setLoading(false)
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchData()
   }, [tournamentId])
+
+  const handleApproval = async (teamId: string, action: 'approve' | 'reject') => {
+    setApproving(teamId + action)
+    try {
+      const res = await fetch(`/api/auctioneers/tournaments/${tournamentId}/teams/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team_id: teamId, action }),
+      })
+      if (res.ok) {
+        await fetchData()
+      }
+    } catch (err) {
+      console.error('Approval error:', err)
+    } finally {
+      setApproving(null)
+    }
+  }
 
   if (authLoading || loading) {
     return (
@@ -101,9 +122,10 @@ export default function TournamentTeamsPage({
     )
   }
 
-  const slotsUsed = teams.length
+  const pendingCount = teams.filter(t => t.status === 'pending').length
+  const approvedCount = teams.filter(t => t.status === 'approved').length
   const totalSlots = tournament.num_teams
-  const slotsPercent = totalSlots > 0 ? Math.round((slotsUsed / totalSlots) * 100) : 0
+  const slotsPercent = totalSlots > 0 ? Math.round((approvedCount / totalSlots) * 100) : 0
 
   return (
     <div className="min-h-screen pb-24">
@@ -133,7 +155,7 @@ export default function TournamentTeamsPage({
         </div>
       </header>
 
-      {/* Slots Progress */}
+      {/* Approved Slots Progress */}
       <section className="px-5 py-4">
         <div className="glass rounded-xl p-4">
           <div className="flex items-center gap-3">
@@ -143,10 +165,10 @@ export default function TournamentTeamsPage({
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-semibold text-foreground">
-                  Team Slots
+                  Approved Slots
                 </span>
                 <span className="text-sm font-bold text-neon">
-                  {slotsUsed} / {totalSlots}
+                  {approvedCount} / {totalSlots}
                 </span>
               </div>
               <div className="h-2 rounded-full bg-secondary overflow-hidden">
@@ -155,6 +177,11 @@ export default function TournamentTeamsPage({
                   style={{ width: `${slotsPercent}%` }}
                 />
               </div>
+              {pendingCount > 0 && (
+                <p className="text-[10px] text-amber-400 mt-1">
+                  {pendingCount} team{pendingCount > 1 ? 's' : ''} awaiting approval
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -166,7 +193,7 @@ export default function TournamentTeamsPage({
           Teams ({teams.length})
         </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Teams registered for this tournament
+          Approve or reject teams to include them in the auction
         </p>
       </div>
 
@@ -186,55 +213,118 @@ export default function TournamentTeamsPage({
           teams.map((team) => (
             <div
               key={team.id}
-              className="glass rounded-xl p-4 flex items-center gap-3"
+              className={`glass rounded-xl p-4 flex flex-col gap-3 ${
+                team.status === 'withdrawn' || team.status === 'rejected' ? 'opacity-50' : ''
+              }`}
             >
-              {/* Team Logo */}
-              <TeamLogo
-                logoUrl={team.logo_url}
-                shortName={team.short_name || team.name.charAt(0)}
-                color={team.color || '#F4A261'}
-              />
+              <div className="flex items-center gap-3">
+                {/* Team Logo */}
+                <TeamLogo
+                  logoUrl={team.logo_url}
+                  shortName={team.short_name || team.name.charAt(0)}
+                  color={team.color || '#F4A261'}
+                />
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-foreground truncate">
-                    {team.name}
-                  </h3>
-                  {team.short_name && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold shrink-0">
-                      {team.short_name}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-foreground truncate">
+                      {team.name}
+                    </h3>
+                    {team.short_name && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold shrink-0">
+                        {team.short_name}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {team.users?.email || team.owner_name || 'Unknown owner'}
+                  </p>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <div className="flex items-center gap-1">
+                      <Wallet className="h-3 w-3 text-gold" />
+                      <span className="text-xs font-semibold text-foreground">{team.budget} pts</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(team.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Badge */}
+                <div className="shrink-0">
+                  {team.status === 'withdrawn' ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/15 text-destructive">
+                      Withdrawn
+                    </span>
+                  ) : team.status === 'approved' ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neon/15 text-neon">
+                      Approved
+                    </span>
+                  ) : team.status === 'rejected' ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/15 text-destructive">
+                      Rejected
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400">
+                      Pending
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {team.users?.email || team.owner_name || 'Unknown owner'}
-                </p>
-                <div className="flex items-center gap-3 mt-1.5">
-                  <div className="flex items-center gap-1">
-                    <Wallet className="h-3 w-3 text-gold" />
-                    <span className="text-xs font-semibold text-foreground">{team.budget} pts</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">
-                      {new Date(team.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
               </div>
 
-              {/* Status */}
-              <div className="shrink-0">
-                {team.status === 'withdrawn' ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/15 text-destructive">
-                    Withdrawn
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neon/15 text-neon">
-                    Active
-                  </span>
-                )}
-              </div>
+              {/* Approve / Reject buttons for pending teams */}
+              {team.status === 'pending' && (
+                <div className="flex gap-2 pt-1 border-t border-white/5">
+                  <Button
+                    size="sm"
+                    onClick={() => handleApproval(team.id, 'approve')}
+                    disabled={approving !== null}
+                    className="flex-1 bg-neon/20 text-neon border border-neon/30 hover:bg-neon/30 font-semibold text-xs h-8"
+                  >
+                    {approving === team.id + 'approve' ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Check className="h-3 w-3 mr-1" />
+                    )}
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleApproval(team.id, 'reject')}
+                    disabled={approving !== null}
+                    className="flex-1 bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 font-semibold text-xs h-8"
+                  >
+                    {approving === team.id + 'reject' ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <X className="h-3 w-3 mr-1" />
+                    )}
+                    Reject
+                  </Button>
+                </div>
+              )}
+
+              {/* Re-review button for rejected teams */}
+              {team.status === 'rejected' && (
+                <div className="flex gap-2 pt-1 border-t border-white/5">
+                  <Button
+                    size="sm"
+                    onClick={() => handleApproval(team.id, 'approve')}
+                    disabled={approving !== null}
+                    className="flex-1 bg-neon/20 text-neon border border-neon/30 hover:bg-neon/30 font-semibold text-xs h-8"
+                  >
+                    {approving === team.id + 'approve' ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Check className="h-3 w-3 mr-1" />
+                    )}
+                    Approve Instead
+                  </Button>
+                </div>
+              )}
             </div>
           ))
         )}

@@ -65,13 +65,13 @@ export async function POST(request: Request) {
     const adminClient = createAdminClient()
 
     const ext = file.name.split('.').pop() || 'png'
-    const filePath = `${user.id}/${teamId}_${Date.now()}.${ext}`
+    const filePath = `teams/${user.id}/${teamId}_${Date.now()}.${ext}`
 
     const arrayBuffer = await file.arrayBuffer()
     const buffer = new Uint8Array(arrayBuffer)
 
     const { data: uploadData, error: uploadError } = await adminClient.storage
-      .from('team-logos')
+      .from('player-profiles')
       .upload(filePath, buffer, {
         contentType: file.type,
         upsert: true,
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
     // Get the public URL
     const { data: publicUrlData } = adminClient.storage
-      .from('team-logos')
+      .from('player-profiles')
       .getPublicUrl(filePath)
 
     const logoUrl = publicUrlData.publicUrl

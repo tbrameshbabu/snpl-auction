@@ -18,6 +18,7 @@ import {
   Clock,
   Wallet,
 } from 'lucide-react'
+import { AuctioneerEditProfileModal } from '@/components/auctioneer-edit-profile-modal'
 
 interface Tournament {
   id: string
@@ -36,6 +37,7 @@ export default function AuctioneerDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [auctioneer, setAuctioneer] = useState<any>(null)
 
   useEffect(() => {
     if (!authLoading && (!user || role !== 'auctioneer')) {
@@ -50,6 +52,18 @@ export default function AuctioneerDashboardPage() {
 
   const fetchTournaments = async () => {
     try {
+      // Fetch auctioneer profile first
+      const profileRes = await fetch('/api/auctioneers/register', { method: 'GET' })
+      // Since there's no GET method explicitly made for auctioneer profile fetching yet like player, we can try to fetch the profile from an existing generic profile route if possible, or create a GET method on register route if one exists.
+      // Looking at the codebase, the general /api/auth/profile handles getting the profile!
+      const authProfileRes = await fetch('/api/auth/profile')
+      if (authProfileRes.ok) {
+        const authData = await authProfileRes.json()
+        if (authData.profile) {
+          setAuctioneer(authData.profile)
+        }
+      }
+
       const response = await fetch('/api/auctioneers/tournaments')
       const data = await response.json()
       const fetched = data.tournaments || []
@@ -120,9 +134,17 @@ export default function AuctioneerDashboardPage() {
               <h1 className="text-xl font-bold text-foreground">
                 Auctioneer Dashboard
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Manage your tournaments and auctions
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-xs text-muted-foreground">
+                  {auctioneer?.name ? `Welcome back, ${auctioneer.name}` : 'Manage your tournaments and auctions'}
+                </p>
+                {auctioneer && (
+                  <AuctioneerEditProfileModal 
+                    auctioneer={auctioneer} 
+                    onUpdate={fetchTournaments} 
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>

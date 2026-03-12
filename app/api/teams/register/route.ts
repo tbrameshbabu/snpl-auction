@@ -53,6 +53,29 @@ export async function POST(request: Request) {
       .single()
 
     if (existingTeam) {
+      // Allow re-join if previously withdrawn or rejected
+      const { data: existingFull } = await supabase
+        .from('teams')
+        .select('status')
+        .eq('id', existingTeam.id)
+        .single()
+
+      if (existingFull?.status === 'withdrawn' || existingFull?.status === 'rejected') {
+        // Re-join: update existing team back to pending
+        const { data: updatedTeam, error: updateError } = await supabase
+          .from('teams')
+          .update({ name, short_name, color, status: 'pending' })
+          .eq('id', existingTeam.id)
+          .select()
+          .single()
+
+        if (updateError) {
+          return NextResponse.json({ error: updateError.message }, { status: 500 })
+        }
+
+        return NextResponse.json({ team: updatedTeam, message: 'Team re-registered successfully' })
+      }
+
       return NextResponse.json({ error: 'You already have a team in this tournament' }, { status: 400 })
     }
 
@@ -66,7 +89,7 @@ export async function POST(request: Request) {
         short_name,
         color,
         budget: tournament.budget_per_team,
-        status: 'interested',
+        status: 'pending',
       })
       .select()
       .single()

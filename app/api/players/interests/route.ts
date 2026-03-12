@@ -37,11 +37,15 @@ export async function POST(request: Request) {
       .eq('tournament_id', tournament_id)
       .single()
 
+    // Players always enter 'pending' state when showing interest; only auctioneer can approve.
+    // 'withdrawn' is allowed as-is (player explicitly withdrawing).
+    const resolvedStatus = status === 'interested' ? 'pending' : status
+
     if (existingInterest) {
       // Update existing interest
       const { data, error } = await supabase
         .from('player_interests')
-        .update({ status, bid_preference })
+        .update({ status: resolvedStatus, bid_preference })
         .eq('id', existingInterest.id)
         .select()
         .single()
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
         .insert({
           player_id: player.id,
           tournament_id,
-          status,
+          status: resolvedStatus,
           bid_preference,
         })
         .select()

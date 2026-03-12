@@ -22,6 +22,7 @@ import {
   User,
   Wallet,
 } from 'lucide-react'
+import { PlayerEditProfileModal } from '@/components/player-edit-profile-modal'
 
 interface Tournament {
   id: string
@@ -141,7 +142,11 @@ export default function PlayerDashboardPage() {
   }
 
   const hasInterest = (tournamentId: string) => {
-    return interests.some(i => i.tournament_id === tournamentId && i.status === 'interested')
+    return interests.some(i => i.tournament_id === tournamentId && i.status === 'approved')
+  }
+
+  const isPendingApproval = (tournamentId: string) => {
+    return interests.some(i => i.tournament_id === tournamentId && i.status === 'pending')
   }
 
   const isWithdrawn = (tournamentId: string) => {
@@ -203,8 +208,10 @@ export default function PlayerDashboardPage() {
     }
   }
 
-  const interestedCount = interests.filter(i => i.status === 'interested').length
+  const approvedCount = interests.filter(i => i.status === 'approved').length
+  const pendingCount = interests.filter(i => i.status === 'pending').length
   const withdrawnCount = interests.filter(i => i.status === 'withdrawn').length
+  const interestedCount = approvedCount
 
   if (authLoading || loading) {
     return (
@@ -239,9 +246,17 @@ export default function PlayerDashboardPage() {
               <h1 className="text-xl font-bold text-foreground">
                 Welcome back, {player?.name || 'Player'}
               </h1>
-              <p className="text-xs text-muted-foreground capitalize">
-                {player?.role?.replace('_', ' ') || 'Player'} · Manage your tournament preferences
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-xs text-muted-foreground capitalize">
+                  {player?.role?.replace('_', ' ') || 'Player'} · Manage your tournament preferences
+                </p>
+                {player && (
+                  <PlayerEditProfileModal 
+                    player={player} 
+                    onUpdate={fetchPlayerData} 
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -267,16 +282,16 @@ export default function PlayerDashboardPage() {
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
             <Check className="h-4 w-4 text-neon" />
             <span className="text-lg font-bold text-neon">
-              {interestedCount}
+              {approvedCount}
             </span>
-            <span className="text-[10px] text-muted-foreground">Interested</span>
+            <span className="text-[10px] text-muted-foreground">Approved</span>
           </div>
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
-            <XCircle className="h-4 w-4 text-destructive" />
-            <span className="text-lg font-bold text-destructive">
-              {withdrawnCount}
+            <Clock className="h-4 w-4 text-amber-400" />
+            <span className="text-lg font-bold text-amber-400">
+              {pendingCount}
             </span>
-            <span className="text-[10px] text-muted-foreground">Withdrawn</span>
+            <span className="text-[10px] text-muted-foreground">Pending</span>
           </div>
         </div>
       </section>
@@ -302,8 +317,9 @@ export default function PlayerDashboardPage() {
         ) : (
           tournaments.map((tournament) => {
             const interested = hasInterest(tournament.id)
+            const pendingApproval = isPendingApproval(tournament.id)
             const withdrawn = isWithdrawn(tournament.id)
-            const isPending = !interested && !withdrawn
+            const hasNoInterest = !interested && !pendingApproval && !withdrawn
             const isExpanded = expandedId === tournament.id
             const auctionDate = new Date(tournament.auction_date)
 
@@ -313,6 +329,7 @@ export default function PlayerDashboardPage() {
                 className={cn(
                   "glass rounded-xl overflow-hidden transition-all duration-300",
                   interested && "border-neon/40",
+                  pendingApproval && "border-amber-500/30",
                   withdrawn && "border-destructive/30 opacity-60"
                 )}
               >
@@ -327,13 +344,17 @@ export default function PlayerDashboardPage() {
                       "h-11 w-11 rounded-lg flex items-center justify-center shrink-0",
                       interested
                         ? "bg-neon/15"
-                        : withdrawn
-                          ? "bg-destructive/15"
-                          : "bg-gold/10"
+                        : pendingApproval
+                          ? "bg-amber-500/15"
+                          : withdrawn
+                            ? "bg-destructive/15"
+                            : "bg-gold/10"
                     )}
                   >
                     {interested ? (
                       <Check className="h-5 w-5 text-neon" />
+                    ) : pendingApproval ? (
+                      <Clock className="h-5 w-5 text-amber-400" />
                     ) : withdrawn ? (
                       <XCircle className="h-5 w-5 text-destructive" />
                     ) : (
@@ -445,8 +466,8 @@ export default function PlayerDashboardPage() {
                       </div>
                     )}
 
-                    {/* Interest Actions — matches player-interest-screen pattern */}
-                    {isPending && tournament.status !== 'live' && (
+                    {/* Interest Actions */}
+                    {hasNoInterest && tournament.status !== 'live' && (
                       <div className="flex gap-2">
                         <Button
                           size="lg"
@@ -473,12 +494,34 @@ export default function PlayerDashboardPage() {
                       </div>
                     )}
 
+                    {pendingApproval && (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                          <Clock className="h-4 w-4 text-amber-400 shrink-0" />
+                          <span className="text-sm font-medium text-amber-400">
+                            Awaiting auctioneer approval
+                          </span>
+                        </div>
+                        {tournament.status !== 'live' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setShowWithdrawConfirm(tournament.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs self-start"
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Withdraw
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
                     {interested && (
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-neon/10 border border-neon/20">
                           <Check className="h-4 w-4 text-neon shrink-0" />
                           <span className="text-sm font-medium text-neon">
-                            You have shown interest in this tournament
+                            Approved — you are in the auction pool
                           </span>
                         </div>
                         {tournament.status !== 'live' && (
