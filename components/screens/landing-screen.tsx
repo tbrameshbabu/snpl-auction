@@ -11,6 +11,10 @@ import {
   Shield,
   Timer,
   TrendingUp,
+  ClipboardList,
+  Radio,
+  ListChecks,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/app-header";
@@ -32,7 +36,7 @@ interface Tournament {
 
 export function LandingScreen({ onNavigate }: LandingScreenProps) {
   const router = useRouter()
-  const [role, setRole] = useState<"player" | "manager" | "auctioneer">("player");
+  const [role, setRole] = useState<"player" | "team_owner">("player");
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -47,8 +51,7 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
           setTournaments(data.tournaments?.slice(0, 3) || [])
         }
         setLoading(false)
-      } catch (err) {
-        console.error('Failed to fetch tournaments:', err)
+      } catch {
         setLoading(false)
       }
     }
@@ -89,10 +92,10 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
             </button>
             <button
               type="button"
-              onClick={() => setRole("manager")}
+              onClick={() => setRole("team_owner")}
               className={cn(
                 "flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200",
-                role === "manager"
+                role === "team_owner"
                   ? "bg-gold text-background shadow-lg"
                   : "text-muted-foreground hover:text-foreground"
               )}
@@ -113,7 +116,7 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
               }}
               className="bg-gold text-background hover:bg-gold/90 font-semibold w-full animate-pulse-gold"
             >
-              {role === "player" ? "Register Now" : role === "manager" ? "Register as Team Owner" : "Register as Auctioneer"}
+              {role === "player" ? "Register as Player" : "Register as Team Owner"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
             {role === "player" && (
@@ -127,18 +130,7 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             )}
-            {role === "manager" && (
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => window.location.href = "/auth/login"}
-                className="w-full border-gold/30 text-gold hover:bg-gold/10 hover:text-gold font-semibold bg-transparent"
-              >
-                Already Registered? Login
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            )}
-            {role === "auctioneer" && (
+            {role === "team_owner" && (
               <Button
                 size="lg"
                 variant="outline"
@@ -168,7 +160,7 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
         <div className="flex flex-col gap-3">
           {loading ? (
             <div className="glass rounded-xl p-8 text-center">
-              <p className="text-sm text-muted-foreground">Loading tournaments...</p>
+              <Loader2 className="mx-auto h-5 w-5 animate-spin text-gold" />
             </div>
           ) : tournaments.length === 0 ? (
             <div className="glass rounded-xl p-8 text-center">
@@ -206,6 +198,17 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
               </button>
             ))
           )}
+        </div>
+      </section>
+      <section className="px-5 pb-8">
+        <p className="eyebrow mb-3">How it works</p>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {([
+            [ClipboardList, "Register profile"], [Radio, "Tournament publishes"], [TrendingUp, "Live auction with bids on behalf of teams"], [ListChecks, "Results & rosters"],
+          ] as const).map(([Icon, title]) => {
+            const FeatureIcon = Icon;
+            return <div key={title} className="glass rounded-xl p-4"><FeatureIcon className="h-5 w-5 text-gold" /><h3 className="mt-3 text-sm font-semibold">{title}</h3></div>;
+          })}
         </div>
       </section>
     </div>

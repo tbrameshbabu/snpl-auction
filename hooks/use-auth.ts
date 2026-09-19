@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 
@@ -19,13 +19,23 @@ export function useAuth() {
     loading: true,
   })
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
-    // Get initial session
+    let cancelled = false
+    const isUserRole = (value: unknown): value is Exclude<UserRole, null> =>
+      value === 'player' || value === 'team_owner' || value === 'auctioneer'
+    const fetchUserRole = async (userId: string) => {
+      const { data, error } = await supabase.from('users').select('role').eq('id', userId).single()
+      if (cancelled) return
+      if (error) { setState({ user: null, role: null, loading: false }); return }
+      const { data: userData } = await supabase.auth.getUser()
+      if (cancelled) return
+      setState({ user: userData.user, role: isUserRole(data?.role) ? data.role : null, loading: false })
+    }
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        fetchUserRole(session.user.id)
+        void fetchUserRole(session.user.id)
       } else {
         setState({ user: null, role: null, loading: false })
       }
@@ -36,35 +46,14 @@ export function useAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchUserRole(session.user.id)
+        void fetchUserRole(session.user.id)
       } else {
         setState({ user: null, role: null, loading: false })
       }
     })
 
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchUserRole = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', userId)
-      .single()
-
-    if (error) {
-      console.error('Error fetching user role:', error)
-      setState({ user: null, role: null, loading: false })
-      return
-    }
-
-    const { data: { user } } = await supabase.auth.getUser()
-    setState({
-      user: user,
-      role: data?.role as UserRole,
-      loading: false,
-    })
-  }
+    return () => { cancelled = true; subscription.unsubscribe() }
+  }, [supabase])
 
   const signOut = async () => {
     await supabase.auth.signOut()
