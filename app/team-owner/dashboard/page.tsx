@@ -141,16 +141,26 @@ export default function TeamOwnerDashboardPage() {
   const handleJoinAuction = async (tournamentId: string) => {
     setJoining(tournamentId);
     try {
-      const response = await fetch("/api/teams/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tournament_id: tournamentId,
-          name: `Team ${user?.email?.split("@")[0] || "Owner"}`,
-          short_name: (user?.email?.slice(0, 3) || "OWN").toUpperCase(),
-          color: "#F4A261",
-        }),
-      });
+      const existingTeam = getTeamForTournament(tournamentId);
+      const response = existingTeam
+        ? await fetch("/api/teams/register", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tournament_id: tournamentId,
+              status: "interested",
+            }),
+          })
+        : await fetch("/api/teams/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tournament_id: tournamentId,
+              name: `Team ${user?.email?.split("@")[0] || "Owner"}`,
+              short_name: (user?.email?.slice(0, 3) || "OWN").toUpperCase(),
+              color: "#F4A261",
+            }),
+          });
 
       if (response.ok) {
         await fetchData();
@@ -169,18 +179,13 @@ export default function TeamOwnerDashboardPage() {
     setWithdrawing(tournamentId);
     setShowWithdrawConfirm(null);
     try {
-      const team = getTeamForTournament(tournamentId);
-      if (!team) return;
+      if (!getTeamForTournament(tournamentId)) return;
 
-      // Update team status to withdrawn
       const response = await fetch("/api/teams/register", {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tournament_id: tournamentId,
-          name: team.name,
-          short_name: team.short_name,
-          color: team.color,
           status: "withdrawn",
         }),
       });

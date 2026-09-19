@@ -4,7 +4,7 @@ import { requireRole, requireUser } from '@/lib/api/auth'
 import { unwrap, unwrapList, unwrapRequired } from '@/lib/api/db'
 import { ApiError, handleRouteError } from '@/lib/api/errors'
 import { parseJsonBody } from '@/lib/api/request'
-import { teamRegistrationSchema } from '@/lib/validations/team'
+import { teamInterestSchema, teamRegistrationSchema } from '@/lib/validations/team'
 
 // The team budget is copied from the tournament; the database rejects any
 // other budget or a non-zero spend (guard_teams_write).
@@ -46,6 +46,31 @@ export async function POST(request: Request) {
     )
 
     return NextResponse.json({ team, message: 'Team registered successfully' })
+  } catch (error) {
+    return handleRouteError(error)
+  }
+}
+
+// Withdraw or re-join with an existing team. The database freezes team
+// status once the tournament leaves registration (guard_teams_write).
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createClient()
+    const user = await requireRole(supabase, 'team_owner')
+    const { tournament_id, status } = await parseJsonBody(request, teamInterestSchema)
+
+    const team = unwrapRequired(
+      await supabase
+        .from('teams')
+        .update({ status })
+        .eq('tournament_id', tournament_id)
+        .eq('owner_id', user.id)
+        .select()
+        .maybeSingle(),
+      'Team not found'
+    )
+
+    return NextResponse.json({ team, message: status === 'withdrawn' ? 'Team withdrawn' : 'Team re-joined' })
   } catch (error) {
     return handleRouteError(error)
   }

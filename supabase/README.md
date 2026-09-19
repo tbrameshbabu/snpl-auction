@@ -14,7 +14,11 @@ supabase/
 │   ├── 20240101000003_storage_setup.sql
 │   ├── 20240101000004_fix_users_insert_policy.sql
 │   ├── 20240101000005_add_team_logo.sql
-│   └── 20240101000006_add_active_player_status.sql
+│   ├── 20240101000006_add_active_player_status.sql
+│   ├── 20260919000000_production_hardening.sql   # constraints, RLS rewrite, auth trigger, storage
+│   └── 20260919000001_auction_rpcs.sql           # SECURITY DEFINER auction state machine
+├── tests/
+│   └── auction_hardening.test.sql   # pgTAP checks, run with `npx supabase@2 test db`
 └── config.toml         # Supabase CLI project config (local stack ports/auth)
 ```
 
@@ -27,6 +31,13 @@ npx supabase@2 start      # starts Postgres/Auth/Storage/etc. in Docker and appl
 npx supabase@2 status     # prints API URL, anon key and service_role key
 npx supabase@2 db reset   # wipes the local DB and re-applies supabase/migrations
 npx supabase@2 stop       # `--no-backup` discards local data
+npx supabase@2 test db    # runs supabase/tests/*.test.sql (pgTAP) against the local stack
+```
+
+After changing the schema, regenerate the TypeScript types the app compiles against:
+
+```bash
+npx supabase@2 gen types typescript --local --schema public > lib/database.types.ts
 ```
 
 Then `npm run seed` (see the root README) populates local test data.

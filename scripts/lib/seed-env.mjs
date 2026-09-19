@@ -5,6 +5,9 @@
  * Seeding is refused unless the target is a local Supabase stack
  * (localhost / 127.0.0.1 / *.local / *.test) or SEED_ALLOW_REMOTE=1 is set explicitly.
  * Seed scripts must never point at production by accident.
+ *
+ * SUPABASE_SERVICE_ROLE_KEY is required: accounts are provisioned through the Auth admin
+ * API and the auctioneer role is assigned with privileged access (see seed-users.mjs).
  */
 
 import { readFileSync } from 'fs'
@@ -54,9 +57,16 @@ export function loadSeedEnv() {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !anonKey) {
     console.error(
       '❌ Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY (env, .env.seed.local or .env.local)',
+    )
+    process.exit(1)
+  }
+  if (!serviceRoleKey) {
+    console.error(
+      '❌ Missing SUPABASE_SERVICE_ROLE_KEY (printed by `npx supabase@2 status` for the local stack)',
     )
     process.exit(1)
   }
@@ -70,5 +80,5 @@ export function loadSeedEnv() {
   }
 
   const password = process.env.SEED_PASSWORD || 'Test@123'
-  return { url, anonKey, password }
+  return { url, anonKey, serviceRoleKey, password }
 }

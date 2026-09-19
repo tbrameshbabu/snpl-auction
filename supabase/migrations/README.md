@@ -13,6 +13,21 @@ Migrations are numbered sequentially and should be run in order:
 5. **20240101000004_fix_users_insert_policy.sql** - Fixes the `users` INSERT RLS policy
 6. **20240101000005_add_team_logo.sql** - Adds team logo support
 7. **20240101000006_add_active_player_status.sql** - Adds the `active` player status
+8. **20260919000000_production_hardening.sql** - Production hardening (non-destructive):
+   `private` helper schema, `auction_round` on `tournament_players` / `round` on `bids`,
+   same-tournament composite foreign keys, one-active-player-per-tournament index, `auth.users`
+   profile trigger (self-service roles limited to `player`/`team_owner`), RLS rewrite with
+   write-guard triggers, table privilege revokes, `player-profiles`/`team-logos` storage buckets
+   and path-scoped policies
+9. **20260919000001_auction_rpcs.sql** - `SECURITY DEFINER` auction state machine
+   (`start_auction`, `activate_player`, `place_bid`, `mark_player_sold`, `mark_player_unsold`,
+   `re_auction_unsold`, `complete_auction`); the only write path for auction-state tables
+
+Migration 8 validates legacy data instead of deleting it: constraints are added `NOT VALID` and
+then validated inside `DO` blocks that `RAISE WARNING` (listing the offending table) when rows
+reference another tournament, and any extra `active` tournament player is demoted to `pending`
+with a warning. Read the warnings when applying to a database with existing data and fix the
+rows by hand, then run `ALTER TABLE ... VALIDATE CONSTRAINT ...` for the named constraint.
 
 Migrations are forward-only. Never edit a migration that has been applied to any environment;
 add a new `<timestamp>_name.sql` file instead (the CLI ignores files that do not match that pattern).
@@ -54,9 +69,15 @@ After running migrations, verify:
 
 2. RLS is enabled on all tables
 
-3. Storage bucket `player-profiles` exists
+3. Storage buckets `player-profiles` and `team-logos` exist
 
 4. All indexes are created
+
+5. The auction RPCs exist and are executable only by `authenticated`:
+   `select proname from pg_proc where pronamespace = 'public'::regnamespace and proname like '%auction%';`
+
+On a local stack, `npx supabase@2 test db` runs `../tests/auction_hardening.test.sql`, which
+asserts the RLS, privilege and state-machine behaviour above.
 
 ## Rollback
 

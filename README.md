@@ -53,13 +53,12 @@ browser client is created at module scope):
 | `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL (local: `http://127.0.0.1:54321`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (publishable) key                        |
 
-Server-only (never expose to the client, never commit):
+The app itself needs **no** service-role key: every privileged auction operation runs as a
+`SECURITY DEFINER` RPC in the database (`supabase/migrations/20260919000001_auction_rpcs.sql`)
+and is authorised there. There is no `lib/supabase/admin.ts`.
 
-| Variable                    | Description                                                                                                                                                                                                                                                 |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key. Used by `lib/supabase/admin.ts`; currently read at runtime by `POST /api/auction/[tournamentId]/sold` to update team budgets. Not needed to build. Intended for server-side privileged operations and explicit provisioning scripts only. |
-
-Seed-only (see Seeding): `SEED_PASSWORD`, `SEED_ALLOW_REMOTE`.
+Seed-only, local stack (never expose to the client, never commit; see Seeding):
+`SUPABASE_SERVICE_ROLE_KEY`, `SEED_PASSWORD`, `SEED_ALLOW_REMOTE`.
 
 For a static compile without a real project (CI, smoke builds) any syntactically valid,
 non-secret values work, e.g.:
@@ -82,17 +81,27 @@ npx supabase@2 stop             # add --no-backup to discard data
 Put the printed `API URL` / `anon key` into `.env.local`. `supabase/config.toml` is the CLI
 project config (ports, auth settings) and is committed; `supabase/.temp` is ignored.
 
+```bash
+npx supabase@2 test db          # pgTAP: supabase/tests/*.test.sql (RLS, RPC state machine, storage)
+npm run smoke                   # HTTP smoke against a running `npm run dev`/`npm start`
+```
+
 ## Seeding development data
 
 `npm run seed` creates 1 auctioneer, 4 team owners (+ teams) and 5 players with a published
-tournament; `npm run seed:players` adds 25 more players. Both sign up via the anon key
-(no service-role key needed) and are idempotent.
+tournament; `npm run seed:players` adds 25 more players. Both are idempotent. Accounts are
+created with the Auth admin API using the local `SUPABASE_SERVICE_ROLE_KEY` (printed by
+`npx supabase@2 status`) so they are confirmed immediately, and the seed auctioneer is promoted
+with the same privileged `update public.users set role = 'auctioneer'` an operator would run.
+Everything after sign-in (tournament, teams, interests) goes through the normal anon-key API
+and RLS.
 
 Safety rails (`scripts/lib/seed-env.mjs`):
 
 - env is read from the process, then `.env.seed.local`, then `.env.local`;
 - the target must be local (`localhost`, `127.0.0.1`, `*.local`, `*.test`) unless
   `SEED_ALLOW_REMOTE=1` is set explicitly;
+- `SUPABASE_SERVICE_ROLE_KEY` is required (the seed refuses to run without it);
 - account password defaults to `Test@123`; override with `SEED_PASSWORD`.
 
 Seeded accounts are for local/test stacks only. Do not run seeds against production.
@@ -102,36 +111,46 @@ Seeded accounts are for local/test stacks only. Do not run seeds against product
 | Role         | Sign-up                                  | Access                                                                                  |
 | ------------ | ---------------------------------------- | --------------------------------------------------------------------------------------- |
 | `player`     | Public (`/auth/signup`)                  | `/player/**`, shows interest, views auctions/results                                    |
-| `team_owner` | Public (`/auth/signup`)                  | `/team-owner/**`, registers a team, bids                                                |
+| `team_owner` | Public (`/auth/signup`)                  | `/team-owner/**`, registers/withdraws a team, follows the live auction and results      |
 | `auctioneer` | **Not offered in the public sign-up UI** | `/auctioneer/**`: creates tournaments, runs auctions, can place bids on behalf of teams |
 
-Auctioneers are provisioned deliberately, not self-served:
+Auctioneers are provisioned deliberately, not self-served. `POST /api/auth/signup` accepts only
+`player` / `team_owner`, and the `auth.users` trigger maps any other requested role to
+`player`, so the only way to become an auctioneer is a privileged role update:
 
-1. Create the auth user (Supabase Dashboard → Authentication → Add user, or the local seed).
-2. Ensure the `public.users` row has `role = 'auctioneer'` (the seed does this via the API;
-   for a real project run in SQL Editor:
-   `update public.users set role = 'auctioneer' where email = '<email>';`).
+1. The person signs up normally at `/auth/signup` (or an operator adds the user in
+   Supabase Dashboard → Authentication → Add user).
+2. An operator runs, as `postgres`/service role (SQL Editor or `psql`):
+   `update public.users set role = 'auctioneer' where email = '<email>';`
+   Users cannot change their own `role` (blocked by RLS and a trigger).
 3. The user then completes the profile at `/auctioneer/register`.
 
-`middleware.ts` enforces role-based route access; Row Level Security policies in
-`supabase/migrations/20240101000001_rls_policies.sql` (and later fixes) enforce data access.
+`proxy.ts` (Next.js 16 middleware convention) refreshes the Supabase session and enforces
+role-based route access; Row Level Security policies and `SECURITY DEFINER` RPCs
+(`supabase/migrations/20260919000000_production_hardening.sql`, `…0001_auction_rpcs.sql`)
+enforce data access and the auction state machine.
 
 ## Deployment
 
 1. **Database**: apply `supabase/migrations/*.sql` in order to the target project
    (`npx supabase@2 link --project-ref <ref> && npx supabase@2 db push`). Migrations are
    forward-only; never edit an applied migration — add a new one.
+   Review any `WARNING` output from `20260919000000_production_hardening.sql`: it reports
+   (but never deletes) legacy rows that fail the new same-tournament constraints or have more
+   than one active player per tournament.
 2. **Auth**: in the Supabase Dashboard set Site URL and Redirect URLs to the deployed origin
-   (`/auth/callback`). Storage bucket `player-profiles` is created by migration `…0003`.
+   (`/auth/callback`). Storage buckets `player-profiles` and `team-logos` are created by the
+   migrations.
 3. **App**: deploy the Next.js app (Vercel or any Node host running `npm run build && npm start`)
-   with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and, for the sold endpoint,
-   `SUPABASE_SERVICE_ROLE_KEY` set as platform secrets. Node `>=20.19`.
+   with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set. No service-role key
+   is needed by the app. Node `>=20.19`.
 4. **Verify** (production smoke):
    - `GET /` renders; `GET /tournaments` lists published tournaments.
    - Sign up a player and a team owner; confirm redirects to `/player/register` and
      `/team-owner/dashboard` and that `/auctioneer/**` is refused for them.
    - Log in as the provisioned auctioneer, create a draft tournament, publish it, start an
-     auction, place a bid, mark a player sold; confirm team `spent` updates.
+     auction, place a bid, mark a player sold; confirm team `spent` updates and that a
+     reload of the auctioneer console and the viewer both show the persisted bids.
    - `npm audit --audit-level=high` is clean for the deployed lockfile.
 
 ## CI
@@ -144,6 +163,8 @@ using the non-secret placeholder Supabase env above.
 
 - `app/` App Router pages and `app/api/**` route handlers
 - `components/ui/` shadcn/ui primitives (themed via CSS variables in `app/globals.css` and `tailwind.config.ts`)
-- `lib/supabase/` browser/server/admin Supabase clients
+- `lib/supabase/` typed browser/server Supabase clients (`lib/database.types.ts` is generated:
+  `npx supabase@2 gen types typescript --local --schema public > lib/database.types.ts`)
+- `lib/api/` route-handler helpers (auth, Zod body parsing, error mapping, uploads)
 - `supabase/migrations/` forward-only SQL migrations; `supabase/README.md` for DB details
 - `scripts/` development seed scripts

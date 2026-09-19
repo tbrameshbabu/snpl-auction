@@ -8,19 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { toErrorMessage } from "@/components/shared/api-error";
-
-function getSafeRedirect(value: string | null): string | null {
-  if (
-    !value ||
-    !value.startsWith("/") ||
-    value.startsWith("//") ||
-    value.startsWith("/\\") ||
-    value.includes("\\") ||
-    new URL(value, "http://x").origin !== "http://x"
-  )
-    return null;
-  return value;
-}
+import { safeRedirectPath } from "@/lib/auth/redirect";
 
 function getRoleRedirect(role: unknown): string {
   if (role === "player") return "/player/dashboard";
@@ -53,8 +41,12 @@ function LoginForm() {
         .select("role")
         .eq("id", data.user.id)
         .single();
-      const redirect = getSafeRedirect(params.get("redirectTo"));
-      router.push(redirect ?? getRoleRedirect(userData?.role));
+      router.push(
+        safeRedirectPath(
+          params.get("redirectTo"),
+          getRoleRedirect(userData?.role),
+        ),
+      );
     } catch (err: unknown) {
       setError(toErrorMessage(err, "Unable to sign in"));
     } finally {

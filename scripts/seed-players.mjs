@@ -5,30 +5,17 @@
  * for running a mock auction with 6 teams × 11 players.
  * 
  * Usage: npm run seed:players   (see scripts/lib/seed-env.mjs for target/env rules)
- * All accounts use SEED_PASSWORD (default Test@123).
+ * All accounts use SEED_PASSWORD (default Test@123). Requires SUPABASE_SERVICE_ROLE_KEY
+ * of the local stack (see scripts/lib/seed-users.mjs).
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { loadSeedEnv } from './lib/seed-env.mjs'
+import { createSeedAdmin, ensureUser } from './lib/seed-users.mjs'
 
-const { url: URL, anonKey: KEY, password: PASSWORD } = loadSeedEnv()
+const { url, anonKey, serviceRoleKey, password: PASSWORD } = loadSeedEnv()
+const ctx = { admin: createSeedAdmin({ url, serviceRoleKey }), url, anonKey }
 
-async function signUpUser(email, password, role) {
-  const supabase = createClient(URL, KEY)
-  const { data, error } = await supabase.auth.signUp({ email, password })
-
-  if (error) {
-    if (error.message.includes('already') ) {
-      const { data: d2, error: e2 } = await supabase.auth.signInWithPassword({ email, password })
-      if (e2) throw new Error(`Sign in failed ${email}: ${e2.message}`)
-      return { supabase, user: d2.user }
-    }
-    throw new Error(`Sign up failed ${email}: ${error.message}`)
-  }
-
-  await supabase.from('users').upsert({ id: data.user.id, email, role }, { onConflict: 'id' })
-  return { supabase, user: data.user }
-}
+const signUpUser = (email, password, role) => ensureUser(ctx, email, password, role)
 
 // ─── 25 Additional Players ──────────────────────
 const PLAYERS = [

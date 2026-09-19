@@ -8,51 +8,18 @@
  * 
  * Usage: npm run seed   (see scripts/lib/seed-env.mjs for target/env rules)
  *
- * Requires: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY pointing at a
- * LOCAL Supabase stack (remote targets require SEED_ALLOW_REMOTE=1).
- * Optional: SEED_PASSWORD (default Test@123).
+ * Requires: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY and
+ * SUPABASE_SERVICE_ROLE_KEY of a LOCAL Supabase stack (remote targets require
+ * SEED_ALLOW_REMOTE=1). Optional: SEED_PASSWORD (default Test@123).
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { loadSeedEnv } from './lib/seed-env.mjs'
+import { createSeedAdmin, ensureUser } from './lib/seed-users.mjs'
 
-const { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, password: PASSWORD } = loadSeedEnv()
+const { url, anonKey, serviceRoleKey, password: PASSWORD } = loadSeedEnv()
+const ctx = { admin: createSeedAdmin({ url, serviceRoleKey }), url, anonKey }
 
-// ─── Helper: create a Supabase client and sign up a user ───
-async function signUpUser(email, password, role) {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
-  })
-
-  if (authError) {
-    // If user already exists, try to sign in
-    if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
-      console.log(`  ↳ User ${email} already exists, signing in...`)
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError) throw new Error(`Sign in failed for ${email}: ${signInError.message}`)
-      return { supabase, user: signInData.user }
-    }
-    throw new Error(`Sign up failed for ${email}: ${authError.message}`)
-  }
-
-  if (!authData.user) throw new Error(`No user returned for ${email}`)
-
-  // Insert into users table
-  const { error: userError } = await supabase.from('users').upsert({
-    id: authData.user.id,
-    email,
-    role,
-  }, { onConflict: 'id' })
-
-  if (userError) {
-    console.warn(`  ⚠ users table insert for ${email}:`, userError.message)
-  }
-
-  return { supabase, user: authData.user }
-}
+const signUpUser = (email, password, role) => ensureUser(ctx, email, password, role)
 
 // ─── SEED DATA ──────────────────────────────────────────
 const AUCTIONEER = {
