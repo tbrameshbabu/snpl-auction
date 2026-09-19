@@ -185,7 +185,10 @@ export default function TeamOwnerDashboardPage() {
         }),
       });
 
-      // Refetch regardless (the team status change is server-side)
+      if (!response.ok) {
+        const err = await response.json();
+        console.error("Failed to withdraw:", err);
+      }
       await fetchData();
     } catch (error) {
       console.error("Error withdrawing:", error);
@@ -375,11 +378,7 @@ export default function TeamOwnerDashboardPage() {
             const myTeam = getTeamForTournament(tournament.id);
             const isExpanded = expandedId === tournament.id;
             const auctionDate = new Date(tournament.auction_date);
-            // We don't have real-time registered count from this API,
-            // use num_teams as total slots
-            const totalSlots = tournament.num_teams;
             const slotsPercentage = myTeam ? 80 : 50; // approximate visual
-            const isFull = false; // We can't determine this from current data
 
             return (
               <div

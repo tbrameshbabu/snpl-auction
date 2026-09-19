@@ -12,11 +12,9 @@ import {
   ArrowLeft,
   Trophy,
   Wallet,
-  Users,
   User,
   Crown,
   Medal,
-  Shield,
   ChevronDown,
   ChevronUp,
   Check,
@@ -90,7 +88,6 @@ export default function PlayerResultsPage({
   const [totalSold, setTotalSold] = useState(0);
   const [totalUnsold, setTotalUnsold] = useState(0);
   const [playerName, setPlayerName] = useState("");
-  const [playerId, setPlayerId] = useState("");
 
   useEffect(() => {
     if (!authLoading && (!user || role !== "player")) {
@@ -104,7 +101,6 @@ export default function PlayerResultsPage({
       const profileRes = await fetch("/api/players/register");
       const profileData = await profileRes.json();
       const pId = profileData.player?.id || "";
-      setPlayerId(pId);
       setPlayerName(profileData.player?.name || "");
 
       // Fetch auction state

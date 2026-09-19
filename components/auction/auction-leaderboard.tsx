@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Users } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { TeamLogo } from "@/components/team-logo";
 import type {
   AuctionSale,

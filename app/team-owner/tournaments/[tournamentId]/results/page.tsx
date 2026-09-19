@@ -16,7 +16,6 @@ import {
   User,
   Crown,
   Medal,
-  Shield,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";

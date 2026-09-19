@@ -13,7 +13,6 @@ import {
   Shield,
   Wallet,
   Calendar,
-  Zap,
 } from "lucide-react";
 
 interface Team {

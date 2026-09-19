@@ -14,7 +14,6 @@ import {
   Clock,
   Users,
   Play,
-  ChevronRight,
   User,
   ArrowLeft,
   Shield,
@@ -80,7 +79,6 @@ export default function AuctionControlPage({
   const [players, setPlayers] = useState<Player[]>([]);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<"teams" | "players">("teams");
-  const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [screen, setScreen] = useState<ScreenView>("overview");
   const [startingAuction, setStartingAuction] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);

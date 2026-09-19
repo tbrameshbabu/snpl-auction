@@ -20,9 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Upload, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Loader2 } from "lucide-react";
 
 const isPlayerRole = (
   value: string,

@@ -4,10 +4,7 @@ import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { LiveAuctionViewer } from "@/components/screens/live-auction-viewer";
 import { AuctionLeaderboard } from "@/components/auction/auction-leaderboard";
-import {
-  deriveTeamSummaries,
-  type AuctionState,
-} from "@/components/auction/auction-state";
+import { deriveTeamSummaries } from "@/components/auction/auction-state";
 import { useAuctionState } from "@/hooks/use-auction-state";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, RefreshCw } from "lucide-react";

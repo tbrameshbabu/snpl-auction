@@ -15,12 +15,10 @@ import {
   Trophy,
   Zap,
   Star,
-  Shield,
   ChevronRight,
   AlertTriangle,
   Calendar,
   User,
-  Wallet,
 } from "lucide-react";
 
 interface Tournament {
@@ -606,7 +604,7 @@ export default function PlayerDashboardPage() {
                               {tournament.title}
                             </span>
                             ? You can re-confirm interest later if the auction
-                            hasn't started.
+                            hasn&apos;t started.
                           </p>
                         </div>
                       </div>
