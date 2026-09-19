@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import { use, useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/use-auth'
-import { Button } from '@/components/ui/button'
-import { AppHeader } from '@/components/app-header'
-import { BiddingScreen } from '@/components/screens/bidding-screen'
-import { ResultsScreen } from '@/components/screens/results-screen'
-import { cn } from '@/lib/utils'
+import { use, useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/app-header";
+import { BiddingScreen } from "@/components/screens/bidding-screen";
+import { ResultsScreen } from "@/components/screens/results-screen";
+import { cn } from "@/lib/utils";
 import {
   Loader2,
   Calendar,
@@ -26,289 +26,324 @@ import {
   ArrowDown,
   Save,
   Check,
-} from 'lucide-react'
+} from "lucide-react";
 
 interface Tournament {
-  id: string
-  title: string
-  description: string
-  auction_date: string
-  auction_time: string
-  status: string
-  num_teams: number
-  budget_per_team: number
+  id: string;
+  title: string;
+  description: string;
+  auction_date: string;
+  auction_time: string;
+  status: string;
+  num_teams: number;
+  budget_per_team: number;
 }
 
 interface Team {
-  id: string
-  name: string
-  short_name: string
-  color: string
-  owner_name: string
-  budget: number
-  created_at: string
-  users?: { email: string }
+  id: string;
+  name: string;
+  short_name: string;
+  color: string;
+  owner_name: string;
+  budget: number;
+  created_at: string;
+  users?: { email: string };
 }
 
 interface Player {
-  id: string
-  name: string
-  role: string
-  batting_hand: string
-  bowling_hand: string
-  base_points: number
-  matches_played: number
-  runs_scored: number
-  wickets_taken: number
-  profile_image_url?: string
-  order_index?: number
+  id: string;
+  name: string;
+  role: string;
+  batting_hand: string;
+  bowling_hand: string;
+  base_points: number;
+  matches_played: number;
+  runs_scored: number;
+  wickets_taken: number;
+  profile_image_url?: string;
+  order_index?: number;
 }
 
-type ScreenView = 'overview' | 'bidding' | 'results'
+type ScreenView = "overview" | "bidding" | "results";
 
 export default function AuctionControlPage({
-  params
+  params,
 }: {
-  params: Promise<{ tournamentId: string }>
+  params: Promise<{ tournamentId: string }>;
 }) {
-  const { tournamentId } = use(params)
-  const router = useRouter()
-  const { user, role, loading: authLoading } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [tournament, setTournament] = useState<Tournament | null>(null)
-  const [teams, setTeams] = useState<Team[]>([])
-  const [players, setPlayers] = useState<Player[]>([])
-  const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'teams' | 'players'>('teams')
-  const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
-  const [screen, setScreen] = useState<ScreenView>('overview')
-  const [startingAuction, setStartingAuction] = useState(false)
-  const [savingOrder, setSavingOrder] = useState(false)
-  const [orderDirty, setOrderDirty] = useState(false)
-  const [orderSaved, setOrderSaved] = useState(false)
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const { tournamentId } = use(params);
+  const router = useRouter();
+  const { user, role, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<"teams" | "players">("teams");
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [screen, setScreen] = useState<ScreenView>("overview");
+  const [startingAuction, setStartingAuction] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [orderDirty, setOrderDirty] = useState(false);
+  const [orderSaved, setOrderSaved] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!authLoading && (!user || role !== 'auctioneer')) {
-      router.push('/auth/login')
+    if (!authLoading && (!user || role !== "auctioneer")) {
+      router.push("/auth/login");
     }
-  }, [user, role, authLoading, router])
+  }, [user, role, authLoading, router]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const tournamentRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}`)
-        const tournamentData = await tournamentRes.json()
+        const tournamentRes = await fetch(
+          `/api/auctioneers/tournaments/${tournamentId}`,
+        );
+        const tournamentData = await tournamentRes.json();
 
         if (!tournamentRes.ok) {
-          setError(tournamentData.error || 'Failed to load tournament')
-          setLoading(false)
-          return
+          setError(tournamentData.error || "Failed to load tournament");
+          setLoading(false);
+          return;
         }
 
-        setTournament(tournamentData.tournament)
+        setTournament(tournamentData.tournament);
 
         // If tournament is already live, go straight to bidding
-        if (tournamentData.tournament?.status === 'live') {
-          setScreen('bidding')
+        if (tournamentData.tournament?.status === "live") {
+          setScreen("bidding");
         }
         // If tournament is completed, go straight to results
-        if (tournamentData.tournament?.status === 'completed') {
-          setScreen('results')
+        if (tournamentData.tournament?.status === "completed") {
+          setScreen("results");
         }
 
-        const teamsRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}/teams`)
-        const teamsData = await teamsRes.json()
+        const teamsRes = await fetch(
+          `/api/auctioneers/tournaments/${tournamentId}/teams`,
+        );
+        const teamsData = await teamsRes.json();
         if (teamsRes.ok) {
-          setTeams(teamsData.teams || [])
+          setTeams(teamsData.teams || []);
         }
 
-        const playersRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}/players`)
-        const playersData = await playersRes.json()
+        const playersRes = await fetch(
+          `/api/auctioneers/tournaments/${tournamentId}/players`,
+        );
+        const playersData = await playersRes.json();
         if (playersRes.ok) {
-          setPlayers(playersData.players || [])
+          setPlayers(playersData.players || []);
         }
 
-        setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
-        setLoading(false)
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        setLoading(false);
       }
-    }
+    };
 
-    if (user && role === 'auctioneer') {
-      fetchData()
+    if (user && role === "auctioneer") {
+      fetchData();
     }
-  }, [tournamentId, user, role])
+  }, [tournamentId, user, role]);
 
   /* ── Start Auction ── */
   const handleStartAuction = useCallback(async () => {
-    if (startingAuction || !tournament) return
-    setStartingAuction(true)
+    if (startingAuction || !tournament) return;
+    setStartingAuction(true);
 
     try {
       const res = await fetch(`/api/auction/${tournamentId}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
       if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || 'Failed to start auction')
-        setStartingAuction(false)
-        return
+        const data = await res.json();
+        setError(data.error || "Failed to start auction");
+        setStartingAuction(false);
+        return;
       }
 
-      setTournament((prev) => prev ? { ...prev, status: 'live' } : prev)
-      setScreen('bidding')
-    } catch (err: any) {
-      setError(err.message || 'Failed to start auction')
+      setTournament((prev) => (prev ? { ...prev, status: "live" } : prev));
+      setScreen("bidding");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start auction");
     } finally {
-      setStartingAuction(false)
+      setStartingAuction(false);
     }
-  }, [tournament, tournamentId, startingAuction])
+  }, [tournament, tournamentId, startingAuction]);
 
   /* ── Move player in list ── */
-  const movePlayer = useCallback((fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= players.length) return
-    setPlayers(prev => {
-      const updated = [...prev]
-      const [moved] = updated.splice(fromIndex, 1)
-      updated.splice(toIndex, 0, moved)
-      return updated
-    })
-    setOrderDirty(true)
-    setOrderSaved(false)
-  }, [players.length])
+  const movePlayer = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (toIndex < 0 || toIndex >= players.length) return;
+      setPlayers((prev) => {
+        const updated = [...prev];
+        const [moved] = updated.splice(fromIndex, 1);
+        updated.splice(toIndex, 0, moved);
+        return updated;
+      });
+      setOrderDirty(true);
+      setOrderSaved(false);
+    },
+    [players.length],
+  );
 
   /* ── Save player order ── */
   const saveOrder = useCallback(async () => {
-    if (savingOrder) return
-    setSavingOrder(true)
+    if (savingOrder) return;
+    setSavingOrder(true);
     try {
       const playerOrder = players.map((p, i) => ({
         player_id: p.id,
         order_index: i + 1,
-      }))
+      }));
 
-      const res = await fetch(`/api/auctioneers/tournaments/${tournamentId}/players`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerOrder }),
-      })
+      const res = await fetch(
+        `/api/auctioneers/tournaments/${tournamentId}/players`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playerOrder }),
+        },
+      );
 
       if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || 'Failed to save order')
-        return
+        const data = await res.json();
+        setError(data.error || "Failed to save order");
+        return;
       }
 
-      setOrderDirty(false)
-      setOrderSaved(true)
-      setTimeout(() => setOrderSaved(false), 2000)
-    } catch (err: any) {
-      setError(err.message)
+      setOrderDirty(false);
+      setOrderSaved(true);
+      setTimeout(() => setOrderSaved(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save order");
     } finally {
-      setSavingOrder(false)
+      setSavingOrder(false);
     }
-  }, [players, tournamentId, savingOrder])
+  }, [players, tournamentId, savingOrder]);
 
   /* ── Drag handlers ── */
   const handleDragStart = useCallback((index: number) => {
-    setDragIndex(index)
-  }, [])
+    setDragIndex(index);
+  }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    if (dragIndex === null || dragIndex === index) return
-    movePlayer(dragIndex, index)
-    setDragIndex(index)
-  }, [dragIndex, movePlayer])
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, index: number) => {
+      e.preventDefault();
+      if (dragIndex === null || dragIndex === index) return;
+      movePlayer(dragIndex, index);
+      setDragIndex(index);
+    },
+    [dragIndex, movePlayer],
+  );
 
   const handleDragEnd = useCallback(() => {
-    setDragIndex(null)
-  }, [])
+    setDragIndex(null);
+  }, []);
 
   /* ── Screen navigation ── */
   const handleNavigate = useCallback((target: string) => {
-    if (target === 'results') {
-      setScreen('results')
-    } else if (target === 'bidding') {
-      setScreen('bidding')
+    if (target === "results") {
+      setScreen("results");
+    } else if (target === "bidding") {
+      setScreen("bidding");
     } else {
-      setScreen('overview')
+      setScreen("overview");
     }
-  }, [])
+  }, []);
 
   const getStatusBadge = (status: string) => {
-    const badges: Record<string, { bg: string; text: string; label: string }> = {
-      draft: { bg: 'bg-gold/15', text: 'text-gold', label: 'DRAFT' },
-      published: { bg: 'bg-neon/15', text: 'text-neon', label: 'OPEN' },
-      live: { bg: 'bg-destructive/15', text: 'text-destructive', label: 'LIVE' },
-      completed: { bg: 'bg-secondary', text: 'text-muted-foreground', label: 'DONE' },
-    }
-    const badge = badges[status] || badges.draft
+    const badges: Record<string, { bg: string; text: string; label: string }> =
+      {
+        draft: { bg: "bg-gold/15", text: "text-gold", label: "DRAFT" },
+        published: { bg: "bg-neon/15", text: "text-neon", label: "OPEN" },
+        live: {
+          bg: "bg-destructive/15",
+          text: "text-destructive",
+          label: "LIVE",
+        },
+        completed: {
+          bg: "bg-secondary",
+          text: "text-muted-foreground",
+          label: "DONE",
+        },
+      };
+    const badge = badges[status] || badges.draft;
     return (
-      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>
+      <span
+        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}
+      >
         {badge.label}
       </span>
-    )
-  }
+    );
+  };
 
   const getRoleBadge = (playerRole: string) => {
     const roles: Record<string, { bg: string; text: string; label: string }> = {
-      batsman: { bg: 'bg-gold/15', text: 'text-gold', label: 'BAT' },
-      bowler: { bg: 'bg-neon/15', text: 'text-neon', label: 'BOWL' },
-      all_rounder: { bg: 'bg-gold/15', text: 'text-gold', label: 'AR' },
-      wicket_keeper: { bg: 'bg-neon/15', text: 'text-neon', label: 'WK' },
-    }
-    const r = roles[playerRole] || { bg: 'bg-secondary', text: 'text-muted-foreground', label: playerRole }
+      batsman: { bg: "bg-gold/15", text: "text-gold", label: "BAT" },
+      bowler: { bg: "bg-neon/15", text: "text-neon", label: "BOWL" },
+      all_rounder: { bg: "bg-gold/15", text: "text-gold", label: "AR" },
+      wicket_keeper: { bg: "bg-neon/15", text: "text-neon", label: "WK" },
+    };
+    const r = roles[playerRole] || {
+      bg: "bg-secondary",
+      text: "text-muted-foreground",
+      label: playerRole,
+    };
     return (
-      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${r.bg} ${r.text}`}>
+      <span
+        className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${r.bg} ${r.text}`}
+      >
         {r.label}
       </span>
-    )
-  }
+    );
+  };
 
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
-    )
+    );
   }
 
   if (error || !tournament) {
     return (
       <div className="min-h-screen p-5">
         <div className="glass rounded-xl p-6 max-w-md mx-auto mt-20">
-          <p className="text-red-400 mb-4">{error || 'Tournament not found'}</p>
-          <Button onClick={() => router.push('/auctioneer/tournaments')} className="w-full">
+          <p className="text-red-400 mb-4">{error || "Tournament not found"}</p>
+          <Button
+            onClick={() => router.push("/auctioneer/tournaments")}
+            className="w-full"
+          >
             Back to Tournaments
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   /* ── Render content based on screen ── */
   const renderContent = () => {
-    if (screen === 'bidding') {
+    if (screen === "bidding") {
       return (
         <BiddingScreen
           tournamentId={tournamentId}
           onNavigate={handleNavigate}
         />
-      )
+      );
     }
 
-    if (screen === 'results') {
+    if (screen === "results") {
       return (
         <ResultsScreen
           tournamentId={tournamentId}
           onNavigate={handleNavigate}
         />
-      )
+      );
     }
 
     /* ── Overview (default) ── */
@@ -321,7 +356,9 @@ export default function AuctionControlPage({
             <div className="flex items-center gap-3 mb-2">
               <button
                 type="button"
-                onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}`)}
+                onClick={() =>
+                  router.push(`/auctioneer/tournaments/${tournamentId}`)
+                }
                 className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0"
               >
                 <ArrowLeft className="h-4 w-4 text-muted-foreground" />
@@ -343,15 +380,33 @@ export default function AuctionControlPage({
         <section className="px-5 mb-4">
           <div className="grid grid-cols-4 gap-2">
             {[
-              { icon: Calendar, label: 'Date', value: new Date(tournament.auction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) },
-              { icon: Clock, label: 'Time', value: tournament.auction_time },
-              { icon: Shield, label: 'Teams', value: `${teams.length}/${tournament.num_teams}` },
-              { icon: Users, label: 'Players', value: `${players.length}` },
+              {
+                icon: Calendar,
+                label: "Date",
+                value: new Date(tournament.auction_date).toLocaleDateString(
+                  "en-US",
+                  { month: "short", day: "numeric" },
+                ),
+              },
+              { icon: Clock, label: "Time", value: tournament.auction_time },
+              {
+                icon: Shield,
+                label: "Teams",
+                value: `${teams.length}/${tournament.num_teams}`,
+              },
+              { icon: Users, label: "Players", value: `${players.length}` },
             ].map((stat) => (
-              <div key={stat.label} className="glass rounded-xl p-3 text-center">
+              <div
+                key={stat.label}
+                className="glass rounded-xl p-3 text-center"
+              >
                 <stat.icon className="h-4 w-4 text-gold mx-auto mb-1" />
-                <p className="text-xs font-bold text-foreground">{stat.value}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">{stat.label}</p>
+                <p className="text-xs font-bold text-foreground">
+                  {stat.value}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">
+                  {stat.label}
+                </p>
               </div>
             ))}
           </div>
@@ -362,12 +417,12 @@ export default function AuctionControlPage({
           <div className="glass rounded-xl p-1.5 flex gap-1">
             <button
               type="button"
-              onClick={() => setActiveTab('teams')}
+              onClick={() => setActiveTab("teams")}
               className={cn(
                 "flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200",
-                activeTab === 'teams'
+                activeTab === "teams"
                   ? "bg-gold/15 text-gold"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Shield className="h-3.5 w-3.5 inline mr-1.5" />
@@ -375,12 +430,12 @@ export default function AuctionControlPage({
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('players')}
+              onClick={() => setActiveTab("players")}
               className={cn(
                 "flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200",
-                activeTab === 'players'
+                activeTab === "players"
                   ? "bg-gold/15 text-gold"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <User className="h-3.5 w-3.5 inline mr-1.5" />
@@ -390,13 +445,20 @@ export default function AuctionControlPage({
         </div>
 
         {/* Content */}
-        <section className="px-5" aria-label={activeTab === 'teams' ? 'Teams' : 'Players'}>
-          {activeTab === 'teams' ? (
+        <section
+          className="px-5"
+          aria-label={activeTab === "teams" ? "Teams" : "Players"}
+        >
+          {activeTab === "teams" ? (
             teams.length === 0 ? (
               <div className="glass rounded-xl p-8 text-center">
                 <Users className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <h3 className="text-sm font-semibold text-muted-foreground">No Teams Registered</h3>
-                <p className="text-xs text-muted-foreground/70 mt-1">Teams will appear here once they register</p>
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  No Teams Registered
+                </h3>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  Teams will appear here once they register
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -406,44 +468,61 @@ export default function AuctionControlPage({
                     className="glass rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:border-gold/20 group"
                   >
                     {/* Color accent bar */}
-                    <div className="h-1.5" style={{ background: `linear-gradient(90deg, ${team.color || '#F4A261'}, ${team.color || '#F4A261'}88)` }} />
+                    <div
+                      className="h-1.5"
+                      style={{
+                        background: `linear-gradient(90deg, ${team.color || "#F4A261"}, ${team.color || "#F4A261"}88)`,
+                      }}
+                    />
                     <div className="p-4 flex flex-col items-center text-center">
                       {/* Team badge */}
                       <div
-                        className="h-14 w-14 rounded-xl flex items-center justify-center text-base font-extrabold mb-3 shadow-lg transition-transform group-hover:scale-110"
+                        className={cn(
+                          "h-14 w-14 rounded-xl flex items-center justify-center",
+                          "text-base font-extrabold mb-3 shadow-lg transition-transform",
+                          "group-hover:scale-110",
+                        )}
                         style={{
-                          backgroundColor: `${team.color || '#F4A261'}20`,
-                          color: team.color || '#F4A261',
-                          border: `2px solid ${team.color || '#F4A261'}40`,
+                          backgroundColor: `${team.color || "#F4A261"}20`,
+                          color: team.color || "#F4A261",
+                          border: `2px solid ${team.color || "#F4A261"}40`,
                         }}
                       >
                         {team.short_name || team.name.charAt(0)}
                       </div>
-                      <h4 className="text-sm font-bold text-foreground truncate w-full">{team.name}</h4>
+                      <h4 className="text-sm font-bold text-foreground truncate w-full">
+                        {team.name}
+                      </h4>
                       <p className="text-[10px] text-muted-foreground mt-1 truncate w-full">
                         {team.users?.email || team.owner_name}
                       </p>
                       {/* Budget chip */}
                       <div className="mt-3 flex items-center gap-1.5 bg-gold/10 rounded-lg px-3 py-1.5">
                         <Wallet className="h-3.5 w-3.5 text-gold" />
-                        <span className="text-xs font-bold text-gold">{team.budget} pts</span>
+                        <span className="text-xs font-bold text-gold">
+                          {team.budget} pts
+                        </span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             )
+          ) : players.length === 0 ? (
+            <div className="glass rounded-xl p-8 text-center">
+              <Trophy className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+              <h3 className="text-sm font-semibold text-muted-foreground">
+                No Players Yet
+              </h3>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                Players will appear once they show interest
+              </p>
+            </div>
           ) : (
-            players.length === 0 ? (
-              <div className="glass rounded-xl p-8 text-center">
-                <Trophy className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <h3 className="text-sm font-semibold text-muted-foreground">No Players Yet</h3>
-                <p className="text-xs text-muted-foreground/70 mt-1">Players will appear once they show interest</p>
-              </div>
-            ) : (
-              <>
-                {/* Reorder controls */}
-                {tournament.status !== 'live' && tournament.status !== 'completed' && (
+            <>
+              {/* Reorder controls */}
+              {tournament.status !== "live" &&
+                tournament.status !== "completed" && (
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[11px] text-muted-foreground">
                       <GripVertical className="h-3 w-3 inline mr-1" />
@@ -454,12 +533,12 @@ export default function AuctionControlPage({
                       onClick={saveOrder}
                       disabled={!orderDirty || savingOrder}
                       className={cn(
-                        'h-8 px-3 text-xs font-semibold transition-all',
+                        "h-8 px-3 text-xs font-semibold transition-all",
                         orderSaved
-                          ? 'bg-neon/15 text-neon hover:bg-neon/25'
+                          ? "bg-neon/15 text-neon hover:bg-neon/25"
                           : orderDirty
-                            ? 'bg-gold text-background hover:bg-gold/90'
-                            : 'bg-secondary text-muted-foreground'
+                            ? "bg-gold text-background hover:bg-gold/90"
+                            : "bg-secondary text-muted-foreground",
                       )}
                     >
                       {savingOrder ? (
@@ -469,65 +548,94 @@ export default function AuctionControlPage({
                       ) : (
                         <Save className="h-3 w-3 mr-1" />
                       )}
-                      {savingOrder ? 'Saving...' : orderSaved ? 'Saved!' : 'Save Order'}
+                      {savingOrder
+                        ? "Saving..."
+                        : orderSaved
+                          ? "Saved!"
+                          : "Save Order"}
                     </Button>
                   </div>
                 )}
 
-                {/* Player grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {players.map((player, i) => (
-                    <div
-                      key={player.id}
-                      draggable={tournament.status !== 'live' && tournament.status !== 'completed'}
-                      onDragStart={() => handleDragStart(i)}
-                      onDragOver={(e) => handleDragOver(e, i)}
-                      onDragEnd={handleDragEnd}
-                      className={cn(
-                        'glass rounded-xl p-3 flex items-center gap-2.5 transition-all hover:border-gold/20',
-                        tournament.status !== 'live' && tournament.status !== 'completed' && 'cursor-grab active:cursor-grabbing',
-                        dragIndex === i && 'opacity-50 scale-[0.98] border border-gold/30'
-                      )}
-                    >
-                      {/* Order number / drag handle */}
-                      <div className="flex flex-col items-center gap-0.5 shrink-0 w-6">
-                        {tournament.status !== 'live' && tournament.status !== 'completed' && (
+              {/* Player grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {players.map((player, i) => (
+                  <div
+                    key={player.id}
+                    draggable={
+                      tournament.status !== "live" &&
+                      tournament.status !== "completed"
+                    }
+                    onDragStart={() => handleDragStart(i)}
+                    onDragOver={(e) => handleDragOver(e, i)}
+                    onDragEnd={handleDragEnd}
+                    className={cn(
+                      "glass rounded-xl p-3 flex items-center gap-2.5 transition-all hover:border-gold/20",
+                      tournament.status !== "live" &&
+                        tournament.status !== "completed" &&
+                        "cursor-grab active:cursor-grabbing",
+                      dragIndex === i &&
+                        "opacity-50 scale-[0.98] border border-gold/30",
+                    )}
+                  >
+                    {/* Order number / drag handle */}
+                    <div className="flex flex-col items-center gap-0.5 shrink-0 w-6">
+                      {tournament.status !== "live" &&
+                        tournament.status !== "completed" && (
                           <GripVertical className="h-3 w-3 text-muted-foreground/30" />
                         )}
-                        <span className="text-[9px] font-mono text-muted-foreground/60">
-                          #{i + 1}
+                      <span className="text-[9px] font-mono text-muted-foreground/60">
+                        #{i + 1}
+                      </span>
+                    </div>
+
+                    {/* Avatar */}
+                    {player.profile_image_url ? (
+                      <img
+                        src={player.profile_image_url}
+                        alt={player.name}
+                        className="h-9 w-9 rounded-lg object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-9 w-9 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
+                        <User className="h-4 w-4 text-gold" />
+                      </div>
+                    )}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-xs font-semibold text-foreground truncate">
+                          {player.name}
+                        </h4>
+                        {getRoleBadge(player.role)}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[9px] text-gold font-bold">
+                          {player.base_points} pts
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">
+                          M:{player.matches_played}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">
+                          R:{player.runs_scored}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">
+                          W:{player.wickets_taken}
                         </span>
                       </div>
+                    </div>
 
-                      {/* Avatar */}
-                      {player.profile_image_url ? (
-                        <img src={player.profile_image_url} alt={player.name} className="h-9 w-9 rounded-lg object-cover shrink-0" />
-                      ) : (
-                        <div className="h-9 w-9 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
-                          <User className="h-4 w-4 text-gold" />
-                        </div>
-                      )}
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="text-xs font-semibold text-foreground truncate">{player.name}</h4>
-                          {getRoleBadge(player.role)}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[9px] text-gold font-bold">{player.base_points} pts</span>
-                          <span className="text-[9px] text-muted-foreground">M:{player.matches_played}</span>
-                          <span className="text-[9px] text-muted-foreground">R:{player.runs_scored}</span>
-                          <span className="text-[9px] text-muted-foreground">W:{player.wickets_taken}</span>
-                        </div>
-                      </div>
-
-                      {/* Up/Down arrows */}
-                      {tournament.status !== 'live' && tournament.status !== 'completed' && (
+                    {/* Up/Down arrows */}
+                    {tournament.status !== "live" &&
+                      tournament.status !== "completed" && (
                         <div className="flex flex-col gap-0.5 shrink-0">
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); movePlayer(i, i - 1) }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              movePlayer(i, i - 1);
+                            }}
                             disabled={i === 0}
                             className="h-5 w-5 rounded flex items-center justify-center hover:bg-secondary/80 disabled:opacity-20 transition-colors"
                           >
@@ -535,7 +643,10 @@ export default function AuctionControlPage({
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); movePlayer(i, i + 1) }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              movePlayer(i, i + 1);
+                            }}
                             disabled={i === players.length - 1}
                             className="h-5 w-5 rounded flex items-center justify-center hover:bg-secondary/80 disabled:opacity-20 transition-colors"
                           >
@@ -543,31 +654,32 @@ export default function AuctionControlPage({
                           </button>
                         </div>
                       )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
 
         {/* Sticky bottom action bar */}
-        {tournament.status === 'published' && (
+        {tournament.status === "published" && (
           <div className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-gold/20">
             <div className="max-w-lg mx-auto px-5 py-3">
               {(teams.length === 0 || players.length === 0) && (
                 <p className="text-[10px] text-destructive text-center mb-2">
                   {teams.length === 0 && players.length === 0
-                    ? 'Register teams and players first'
+                    ? "Register teams and players first"
                     : teams.length === 0
-                      ? 'Register at least one team'
-                      : 'At least one player must show interest'}
+                      ? "Register at least one team"
+                      : "At least one player must show interest"}
                 </p>
               )}
               <Button
                 size="lg"
                 onClick={handleStartAuction}
-                disabled={startingAuction || teams.length === 0 || players.length === 0}
+                disabled={
+                  startingAuction || teams.length === 0 || players.length === 0
+                }
                 className="w-full bg-neon text-background hover:bg-neon/90 font-bold text-base disabled:opacity-50 shadow-[0_0_20px_hsl(var(--neon)/0.3)]"
               >
                 {startingAuction ? (
@@ -575,17 +687,17 @@ export default function AuctionControlPage({
                 ) : (
                   <Play className="h-5 w-5 mr-2" />
                 )}
-                {startingAuction ? 'Starting Auction...' : 'Start Auction'}
+                {startingAuction ? "Starting Auction..." : "Start Auction"}
               </Button>
             </div>
           </div>
         )}
-        {tournament.status === 'live' && (
+        {tournament.status === "live" && (
           <div className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-neon/20">
             <div className="max-w-lg mx-auto px-5 py-3">
               <Button
                 size="lg"
-                onClick={() => setScreen('bidding')}
+                onClick={() => setScreen("bidding")}
                 className="w-full bg-neon text-background hover:bg-neon/90 font-bold text-base shadow-[0_0_20px_hsl(var(--neon)/0.3)]"
               >
                 <Zap className="h-5 w-5 mr-2" />
@@ -594,12 +706,12 @@ export default function AuctionControlPage({
             </div>
           </div>
         )}
-        {tournament.status === 'completed' && (
+        {tournament.status === "completed" && (
           <div className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-gold/20">
             <div className="max-w-lg mx-auto px-5 py-3">
               <Button
                 size="lg"
-                onClick={() => setScreen('results')}
+                onClick={() => setScreen("results")}
                 className="w-full bg-gold text-background hover:bg-gold/90 font-bold text-base shadow-[0_0_20px_hsl(var(--gold)/0.3)]"
               >
                 <Trophy className="h-5 w-5 mr-2" />
@@ -609,13 +721,13 @@ export default function AuctionControlPage({
           </div>
         )}
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       {renderContent()}
     </div>
-  )
+  );
 }

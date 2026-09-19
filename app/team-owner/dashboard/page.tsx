@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/use-auth'
-import { AppHeader } from '@/components/app-header'
-import { Button } from '@/components/ui/button'
-import { TeamLogo } from '@/components/team-logo'
-import { cn } from '@/lib/utils'
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { AppHeader } from "@/components/app-header";
+import { Button } from "@/components/ui/button";
+import { TeamLogo } from "@/components/team-logo";
+import { cn } from "@/lib/utils";
 import {
   Loader2,
   Check,
@@ -22,225 +22,268 @@ import {
   Wallet,
   UserCheck,
   UsersRound,
-} from 'lucide-react'
+} from "lucide-react";
 
 interface Tournament {
-  id: string
-  title: string
-  description: string
-  auction_date: string
-  auction_time: string
-  status: string
-  num_teams: number
-  num_players_per_team: number
-  budget_per_team: number
+  id: string;
+  title: string;
+  description: string;
+  auction_date: string;
+  auction_time: string;
+  status: string;
+  num_teams: number;
+  num_players_per_team: number;
+  budget_per_team: number;
 }
 
 // Track team registration status per tournament
 interface TeamRegistration {
-  id: string
-  tournament_id: string
-  name: string
-  short_name: string
-  color: string
-  budget: number
-  spent: number
-  status: string
-  logo_url?: string | null
+  id: string;
+  tournament_id: string;
+  name: string;
+  short_name: string;
+  color: string;
+  budget: number;
+  spent: number;
+  status: string;
+  logo_url?: string | null;
+}
+interface CompletedTournament {
+  players_bought: number;
+  tournament: { id: string; title: string };
+  team: {
+    name: string;
+    short_name: string;
+    color: string;
+    logo_url?: string | null;
+    budget: number;
+    spent: number;
+  };
 }
 
 export default function TeamOwnerDashboardPage() {
-  const router = useRouter()
-  const { user, role, loading: authLoading } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [tournaments, setTournaments] = useState<Tournament[]>([])
-  const [myTeams, setMyTeams] = useState<TeamRegistration[]>([])
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(null)
-  const [joining, setJoining] = useState<string | null>(null)
-  const [withdrawing, setWithdrawing] = useState<string | null>(null)
-  const [completedTournaments, setCompletedTournaments] = useState<any[]>([])
-  const [uploadingLogo, setUploadingLogo] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [uploadTeamId, setUploadTeamId] = useState<string | null>(null)
+  const router = useRouter();
+  const { user, role, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [myTeams, setMyTeams] = useState<TeamRegistration[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(
+    null,
+  );
+  const [joining, setJoining] = useState<string | null>(null);
+  const [withdrawing, setWithdrawing] = useState<string | null>(null);
+  const [completedTournaments, setCompletedTournaments] = useState<
+    CompletedTournament[]
+  >([]);
+  const [uploadingLogo, setUploadingLogo] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadTeamId, setUploadTeamId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && (!user || role !== 'team_owner')) {
-      router.push('/auth/login')
-      return
+    if (!authLoading && (!user || role !== "team_owner")) {
+      router.push("/auth/login");
+      return;
     }
 
-    if (user && role === 'team_owner') {
-      fetchData()
+    if (user && role === "team_owner") {
+      fetchData();
     }
-  }, [user, role, authLoading, router])
+  }, [user, role, authLoading, router]);
 
   const fetchData = async () => {
     try {
       const [tournamentsRes, teamsRes, completedRes] = await Promise.all([
-        fetch('/api/auctioneers/tournaments?status=published,live'),
-        fetch('/api/teams/register'),
-        fetch('/api/teams/completed-tournaments'),
-      ])
-      const tournamentsData = await tournamentsRes.json()
-      const teamsData = await teamsRes.json()
-      const completedData = completedRes.ok ? await completedRes.json() : { tournaments: [] }
-      const fetchedTournaments = tournamentsData.tournaments || []
-      const sortedTournaments = fetchedTournaments.sort((a: Tournament, b: Tournament) => {
-        if (a.status === 'live' && b.status !== 'live') return -1
-        if (a.status !== 'live' && b.status === 'live') return 1
-        return new Date(a.auction_date).getTime() - new Date(b.auction_date).getTime()
-      })
-      setTournaments(sortedTournaments)
-      setMyTeams(teamsData.teams || [])
-      setCompletedTournaments(completedData.tournaments || [])
+        fetch("/api/auctioneers/tournaments?status=published,live"),
+        fetch("/api/teams/register"),
+        fetch("/api/teams/completed-tournaments"),
+      ]);
+      const tournamentsData = await tournamentsRes.json();
+      const teamsData = await teamsRes.json();
+      const completedData = completedRes.ok
+        ? await completedRes.json()
+        : { tournaments: [] };
+      const fetchedTournaments = tournamentsData.tournaments || [];
+      const sortedTournaments = fetchedTournaments.sort(
+        (a: Tournament, b: Tournament) => {
+          if (a.status === "live" && b.status !== "live") return -1;
+          if (a.status !== "live" && b.status === "live") return 1;
+          return (
+            new Date(a.auction_date).getTime() -
+            new Date(b.auction_date).getTime()
+          );
+        },
+      );
+      setTournaments(sortedTournaments);
+      setMyTeams(teamsData.teams || []);
+      setCompletedTournaments(completedData.tournaments || []);
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.error("Error fetching data:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Get team registration for a tournament
   const getTeamForTournament = (tournamentId: string) => {
-    return myTeams.find(t => t.tournament_id === tournamentId)
-  }
+    return myTeams.find((t) => t.tournament_id === tournamentId);
+  };
 
-  const getInterestStatus = (tournamentId: string): 'pending' | 'interested' | 'withdrawn' => {
-    const team = getTeamForTournament(tournamentId)
-    if (!team) return 'pending'
-    if (team.status === 'withdrawn') return 'withdrawn'
-    return 'interested' // confirmed or interested both count
-  }
+  const getInterestStatus = (
+    tournamentId: string,
+  ): "pending" | "interested" | "withdrawn" => {
+    const team = getTeamForTournament(tournamentId);
+    if (!team) return "pending";
+    if (team.status === "withdrawn") return "withdrawn";
+    return "interested"; // confirmed or interested both count
+  };
 
   const handleJoinAuction = async (tournamentId: string) => {
-    setJoining(tournamentId)
+    setJoining(tournamentId);
     try {
-      const response = await fetch('/api/teams/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/teams/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tournament_id: tournamentId,
-          name: `Team ${user?.email?.split('@')[0] || 'Owner'}`,
-          short_name: (user?.email?.slice(0, 3) || 'OWN').toUpperCase(),
-          color: '#F4A261',
+          name: `Team ${user?.email?.split("@")[0] || "Owner"}`,
+          short_name: (user?.email?.slice(0, 3) || "OWN").toUpperCase(),
+          color: "#F4A261",
         }),
-      })
+      });
 
       if (response.ok) {
-        await fetchData()
+        await fetchData();
       } else {
-        const err = await response.json()
-        console.error('Failed to join:', err)
+        const err = await response.json();
+        console.error("Failed to join:", err);
       }
     } catch (error) {
-      console.error('Error joining auction:', error)
+      console.error("Error joining auction:", error);
     } finally {
-      setJoining(null)
+      setJoining(null);
     }
-  }
+  };
 
   const handleWithdraw = async (tournamentId: string) => {
-    setWithdrawing(tournamentId)
-    setShowWithdrawConfirm(null)
+    setWithdrawing(tournamentId);
+    setShowWithdrawConfirm(null);
     try {
-      const team = getTeamForTournament(tournamentId)
-      if (!team) return
+      const team = getTeamForTournament(tournamentId);
+      if (!team) return;
 
       // Update team status to withdrawn
-      const response = await fetch('/api/teams/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/teams/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tournament_id: tournamentId,
           name: team.name,
           short_name: team.short_name,
           color: team.color,
-          status: 'withdrawn',
+          status: "withdrawn",
         }),
-      })
+      });
 
       // Refetch regardless (the team status change is server-side)
-      await fetchData()
+      await fetchData();
     } catch (error) {
-      console.error('Error withdrawing:', error)
+      console.error("Error withdrawing:", error);
     } finally {
-      setWithdrawing(null)
+      setWithdrawing(null);
     }
-  }
+  };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !uploadTeamId) return
+    const file = e.target.files?.[0];
+    if (!file || !uploadTeamId) return;
 
-    setUploadingLogo(uploadTeamId)
+    setUploadingLogo(uploadTeamId);
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('team_id', uploadTeamId)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("team_id", uploadTeamId);
 
-      const response = await fetch('/api/teams/upload-logo', {
-        method: 'POST',
+      const response = await fetch("/api/teams/upload-logo", {
+        method: "POST",
         body: formData,
-      })
+      });
 
       if (response.ok) {
-        await fetchData()
+        await fetchData();
       } else {
-        const err = await response.json()
-        console.error('Upload failed:', err)
+        const err = await response.json();
+        console.error("Upload failed:", err);
       }
     } catch (error) {
-      console.error('Error uploading logo:', error)
+      console.error("Error uploading logo:", error);
     } finally {
-      setUploadingLogo(null)
-      setUploadTeamId(null)
+      setUploadingLogo(null);
+      setUploadTeamId(null);
       // Reset the file input
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'published': return 'text-neon'
-      case 'registering': return 'text-neon'
-      case 'live': return 'text-destructive'
-      case 'completed': return 'text-muted-foreground'
-      case 'draft': return 'text-gold'
-      default: return 'text-gold'
+      case "published":
+        return "text-neon";
+      case "registering":
+        return "text-neon";
+      case "live":
+        return "text-destructive";
+      case "completed":
+        return "text-muted-foreground";
+      case "draft":
+        return "text-gold";
+      default:
+        return "text-gold";
     }
-  }
+  };
 
   const getStatusBg = (status: string) => {
     switch (status) {
-      case 'published': return 'bg-neon/15'
-      case 'registering': return 'bg-neon/15'
-      case 'live': return 'bg-destructive/15'
-      case 'completed': return 'bg-secondary'
-      case 'draft': return 'bg-gold/15'
-      default: return 'bg-gold/15'
+      case "published":
+        return "bg-neon/15";
+      case "registering":
+        return "bg-neon/15";
+      case "live":
+        return "bg-destructive/15";
+      case "completed":
+        return "bg-secondary";
+      case "draft":
+        return "bg-gold/15";
+      default:
+        return "bg-gold/15";
     }
-  }
+  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'published': return 'Open'
-      case 'registering': return 'Open'
-      case 'live': return 'Live'
-      case 'completed': return 'Done'
-      case 'draft': return 'Draft'
-      default: return status
+      case "published":
+        return "Open";
+      case "registering":
+        return "Open";
+      case "live":
+        return "Live";
+      case "completed":
+        return "Done";
+      case "draft":
+        return "Draft";
+      default:
+        return status;
     }
-  }
+  };
 
-  const joinedCount = myTeams.filter(t => t.status !== 'withdrawn').length
-  const withdrawnCount = myTeams.filter(t => t.status === 'withdrawn').length
+  const joinedCount = myTeams.filter((t) => t.status !== "withdrawn").length;
+  const withdrawnCount = myTeams.filter((t) => t.status === "withdrawn").length;
 
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
-    )
+    );
   }
 
   return (
@@ -288,9 +331,7 @@ export default function TeamOwnerDashboardPage() {
           </div>
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
             <Check className="h-4 w-4 text-neon" />
-            <span className="text-lg font-bold text-neon">
-              {joinedCount}
-            </span>
+            <span className="text-lg font-bold text-neon">{joinedCount}</span>
             <span className="text-[10px] text-muted-foreground">Joined</span>
           </div>
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
@@ -330,44 +371,47 @@ export default function TeamOwnerDashboardPage() {
           </div>
         ) : (
           tournaments.map((tournament) => {
-            const interest = getInterestStatus(tournament.id)
-            const myTeam = getTeamForTournament(tournament.id)
-            const isExpanded = expandedId === tournament.id
-            const auctionDate = new Date(tournament.auction_date)
+            const interest = getInterestStatus(tournament.id);
+            const myTeam = getTeamForTournament(tournament.id);
+            const isExpanded = expandedId === tournament.id;
+            const auctionDate = new Date(tournament.auction_date);
             // We don't have real-time registered count from this API,
             // use num_teams as total slots
-            const totalSlots = tournament.num_teams
-            const slotsPercentage = myTeam ? 80 : 50 // approximate visual
-            const isFull = false // We can't determine this from current data
+            const totalSlots = tournament.num_teams;
+            const slotsPercentage = myTeam ? 80 : 50; // approximate visual
+            const isFull = false; // We can't determine this from current data
 
             return (
               <div
                 key={tournament.id}
                 className={cn(
                   "glass rounded-xl overflow-hidden transition-all duration-300",
-                  interest === 'interested' && "border-neon/40",
-                  interest === 'withdrawn' && "border-destructive/30 opacity-60",
+                  interest === "interested" && "border-neon/40",
+                  interest === "withdrawn" &&
+                    "border-destructive/30 opacity-60",
                 )}
               >
                 {/* Card Header */}
                 <button
                   type="button"
-                  onClick={() => setExpandedId(isExpanded ? null : tournament.id)}
+                  onClick={() =>
+                    setExpandedId(isExpanded ? null : tournament.id)
+                  }
                   className="w-full p-4 flex items-center gap-3 text-left"
                 >
                   <div
                     className={cn(
                       "h-11 w-11 rounded-lg flex items-center justify-center shrink-0",
-                      interest === 'interested'
+                      interest === "interested"
                         ? "bg-neon/15"
-                        : interest === 'withdrawn'
+                        : interest === "withdrawn"
                           ? "bg-destructive/15"
-                          : "bg-gold/10"
+                          : "bg-gold/10",
                     )}
                   >
-                    {interest === 'interested' ? (
+                    {interest === "interested" ? (
                       <Check className="h-5 w-5 text-neon" />
-                    ) : interest === 'withdrawn' ? (
+                    ) : interest === "withdrawn" ? (
                       <XCircle className="h-5 w-5 text-destructive" />
                     ) : (
                       <Trophy className="h-5 w-5 text-gold" />
@@ -382,20 +426,25 @@ export default function TeamOwnerDashboardPage() {
                         className={cn(
                           "px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0",
                           getStatusBg(tournament.status),
-                          getStatusColor(tournament.status)
+                          getStatusColor(tournament.status),
                         )}
                       >
                         {getStatusLabel(tournament.status)}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {tournament.auction_time}
+                      {auctionDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}{" "}
+                      at {tournament.auction_time}
                     </p>
                   </div>
                   <ChevronRight
                     className={cn(
                       "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                      isExpanded && "rotate-90"
+                      isExpanded && "rotate-90",
                     )}
                   />
                 </button>
@@ -480,7 +529,7 @@ export default function TeamOwnerDashboardPage() {
                     </div>
 
                     {/* Live Auction Block */}
-                    {tournament.status === 'live' && (
+                    {tournament.status === "live" && (
                       <div className="flex flex-col gap-2 p-3 rounded-lg bg-neon/10 border border-neon/30 mb-3">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="h-2 w-2 rounded-full bg-neon animate-pulse shrink-0" />
@@ -490,7 +539,11 @@ export default function TeamOwnerDashboardPage() {
                         </div>
                         <Button
                           size="lg"
-                          onClick={() => router.push(`/team-owner/tournaments/${tournament.id}/auction`)}
+                          onClick={() =>
+                            router.push(
+                              `/team-owner/tournaments/${tournament.id}/auction`,
+                            )
+                          }
                           className="w-full bg-neon text-background hover:bg-neon/90 font-bold shadow-[0_0_15px_hsl(var(--neon)/0.2)]"
                         >
                           <Zap className="h-4 w-4 mr-2" />
@@ -500,7 +553,7 @@ export default function TeamOwnerDashboardPage() {
                     )}
 
                     {/* Interest/Withdraw Actions */}
-                    {interest === 'pending' && tournament.status !== 'live' && (
+                    {interest === "pending" && tournament.status !== "live" && (
                       <div className="flex gap-2">
                         <Button
                           size="lg"
@@ -513,7 +566,9 @@ export default function TeamOwnerDashboardPage() {
                           ) : (
                             <Check className="h-4 w-4 mr-1.5" />
                           )}
-                          {joining === tournament.id ? 'Joining...' : 'Join Auction'}
+                          {joining === tournament.id
+                            ? "Joining..."
+                            : "Join Auction"}
                         </Button>
                         <Button
                           size="lg"
@@ -527,7 +582,7 @@ export default function TeamOwnerDashboardPage() {
                       </div>
                     )}
 
-                    {interest === 'interested' && (
+                    {interest === "interested" && (
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
                           <Check className="h-4 w-4 text-green-500 shrink-0" />
@@ -542,8 +597,8 @@ export default function TeamOwnerDashboardPage() {
                             <button
                               type="button"
                               onClick={() => {
-                                setUploadTeamId(myTeam.id)
-                                fileInputRef.current?.click()
+                                setUploadTeamId(myTeam.id);
+                                fileInputRef.current?.click();
                               }}
                               disabled={uploadingLogo === myTeam.id}
                               className="relative group"
@@ -554,28 +609,42 @@ export default function TeamOwnerDashboardPage() {
                                 color={myTeam.color}
                                 size="lg"
                               />
-                              <div className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div
+                                className={cn(
+                                  "absolute inset-0 rounded-lg bg-black/50",
+                                  "flex items-center justify-center opacity-0",
+                                  "group-hover:opacity-100 transition-opacity",
+                                )}
+                              >
                                 {uploadingLogo === myTeam.id ? (
                                   <Loader2 className="h-5 w-5 text-white animate-spin" />
                                 ) : (
-                                  <span className="text-white text-[9px] font-bold">CHANGE</span>
+                                  <span className="text-white text-[9px] font-bold">
+                                    CHANGE
+                                  </span>
                                 )}
                               </div>
                             </button>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-foreground">{myTeam.name}</p>
+                              <p className="text-xs font-semibold text-foreground">
+                                {myTeam.name}
+                              </p>
                               <p className="text-[10px] text-muted-foreground">
-                                {myTeam.logo_url ? 'Tap logo to change' : 'Tap to add team logo'}
+                                {myTeam.logo_url
+                                  ? "Tap logo to change"
+                                  : "Tap to add team logo"}
                               </p>
                             </div>
                           </div>
                         )}
 
-                        {tournament.status !== 'live' && (
+                        {tournament.status !== "live" && (
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => setShowWithdrawConfirm(tournament.id)}
+                            onClick={() =>
+                              setShowWithdrawConfirm(tournament.id)
+                            }
                             className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs self-start"
                           >
                             <XCircle className="h-3.5 w-3.5 mr-1" />
@@ -585,7 +654,7 @@ export default function TeamOwnerDashboardPage() {
                       </div>
                     )}
 
-                    {interest === 'withdrawn' && (
+                    {interest === "withdrawn" && (
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20">
                           <XCircle className="h-4 w-4 text-destructive shrink-0" />
@@ -618,11 +687,12 @@ export default function TeamOwnerDashboardPage() {
                             Withdraw Team
                           </h4>
                           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                            Are you sure you want to withdraw your team from{' '}
+                            Are you sure you want to withdraw your team from{" "}
                             <span className="text-foreground font-medium">
                               {tournament.title}
                             </span>
-                            ? Your slot will be released and another team can take it.
+                            ? Your slot will be released and another team can
+                            take it.
                           </p>
                         </div>
                       </div>
@@ -651,7 +721,7 @@ export default function TeamOwnerDashboardPage() {
                   </div>
                 )}
               </div>
-            )
+            );
           })
         )}
       </section>
@@ -668,14 +738,17 @@ export default function TeamOwnerDashboardPage() {
             </p>
           </div>
 
-          <section className="px-5 flex flex-col gap-3" aria-label="Completed auctions">
-            {completedTournaments.map((ct: any) => (
+          <section
+            className="px-5 flex flex-col gap-3"
+            aria-label="Completed auctions"
+          >
+            {completedTournaments.map((ct) => (
               <div key={ct.tournament.id} className="glass rounded-xl p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <TeamLogo
                     logoUrl={ct.team.logo_url}
                     shortName={ct.team.short_name || ct.team.name.charAt(0)}
-                    color={ct.team.color || '#F4A261'}
+                    color={ct.team.color || "#F4A261"}
                   />
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-foreground truncate">
@@ -691,21 +764,37 @@ export default function TeamOwnerDashboardPage() {
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="bg-secondary/50 rounded-lg p-2 text-center">
-                    <span className="text-[10px] text-muted-foreground">Spent</span>
-                    <p className="text-sm font-bold text-foreground">{ct.team.spent ?? 0}</p>
+                    <span className="text-[10px] text-muted-foreground">
+                      Spent
+                    </span>
+                    <p className="text-sm font-bold text-foreground">
+                      {ct.team.spent ?? 0}
+                    </p>
                   </div>
                   <div className="bg-secondary/50 rounded-lg p-2 text-center">
-                    <span className="text-[10px] text-muted-foreground">Remaining</span>
-                    <p className="text-sm font-bold text-neon">{(ct.team.budget ?? 0) - (ct.team.spent ?? 0)}</p>
+                    <span className="text-[10px] text-muted-foreground">
+                      Remaining
+                    </span>
+                    <p className="text-sm font-bold text-neon">
+                      {(ct.team.budget ?? 0) - (ct.team.spent ?? 0)}
+                    </p>
                   </div>
                   <div className="bg-secondary/50 rounded-lg p-2 text-center">
-                    <span className="text-[10px] text-muted-foreground">Players</span>
-                    <p className="text-sm font-bold text-foreground">{ct.players_bought}</p>
+                    <span className="text-[10px] text-muted-foreground">
+                      Players
+                    </span>
+                    <p className="text-sm font-bold text-foreground">
+                      {ct.players_bought}
+                    </p>
                   </div>
                 </div>
                 <Button
                   size="lg"
-                  onClick={() => router.push(`/team-owner/tournaments/${ct.tournament.id}/results`)}
+                  onClick={() =>
+                    router.push(
+                      `/team-owner/tournaments/${ct.tournament.id}/results`,
+                    )
+                  }
                   className="w-full bg-gold text-background hover:bg-gold/90 font-semibold"
                 >
                   <Trophy className="h-4 w-4 mr-1.5" />
@@ -728,12 +817,12 @@ export default function TeamOwnerDashboardPage() {
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               You can join or withdraw your team from any auction before it
               locks. Once all team slots are filled or the auction begins,
-              changes will no longer be possible. Your budget and roster size are
-              set per auction.
+              changes will no longer be possible. Your budget and roster size
+              are set per auction.
             </p>
           </div>
         </div>
       </section>
     </div>
-  )
+  );
 }

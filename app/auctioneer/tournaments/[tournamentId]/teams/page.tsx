@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/use-auth'
-import { Button } from '@/components/ui/button'
-import { AppHeader } from '@/components/app-header'
-import { TeamLogo } from '@/components/team-logo'
+import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/app-header";
+import { TeamLogo } from "@/components/team-logo";
 import {
   Loader2,
   ArrowLeft,
@@ -14,96 +14,110 @@ import {
   Wallet,
   Calendar,
   Zap,
-} from 'lucide-react'
+} from "lucide-react";
 
 interface Team {
-  id: string
-  name: string
-  short_name: string
-  color: string
-  owner_name: string
-  budget: number
-  spent: number
-  status: string
-  created_at: string
-  logo_url?: string | null
-  users?: { email: string }
+  id: string;
+  name: string;
+  short_name: string;
+  color: string;
+  owner_name: string;
+  budget: number;
+  spent: number;
+  status: string;
+  created_at: string;
+  logo_url?: string | null;
+  users?: { email: string };
+}
+interface TournamentSummary {
+  id: string;
+  title: string;
+  status: string;
+  num_teams: number;
 }
 
 export default function TournamentTeamsPage({
-  params
+  params,
 }: {
-  params: Promise<{ tournamentId: string }>
+  params: Promise<{ tournamentId: string }>;
 }) {
-  const { tournamentId } = use(params)
-  const router = useRouter()
-  const { user, role, loading: authLoading } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [teams, setTeams] = useState<Team[]>([])
-  const [tournament, setTournament] = useState<any>(null)
-  const [error, setError] = useState('')
+  const { tournamentId } = use(params);
+  const router = useRouter();
+  const { user, role, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [tournament, setTournament] = useState<TournamentSummary | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!authLoading && (!user || role !== 'auctioneer')) {
-      router.push('/auth/login')
+    if (!authLoading && (!user || role !== "auctioneer")) {
+      router.push("/auth/login");
     }
-  }, [user, role, authLoading, router])
+  }, [user, role, authLoading, router]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const tournamentRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}`)
-        const tournamentData = await tournamentRes.json()
+        const tournamentRes = await fetch(
+          `/api/auctioneers/tournaments/${tournamentId}`,
+        );
+        const tournamentData = await tournamentRes.json();
 
         if (!tournamentRes.ok) {
-          setError(tournamentData.error || 'Failed to load tournament')
-          setLoading(false)
-          return
+          setError(tournamentData.error || "Failed to load tournament");
+          setLoading(false);
+          return;
         }
 
-        setTournament(tournamentData.tournament)
+        setTournament(tournamentData.tournament);
 
-        const teamsRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}/teams`)
-        const teamsData = await teamsRes.json()
+        const teamsRes = await fetch(
+          `/api/auctioneers/tournaments/${tournamentId}/teams`,
+        );
+        const teamsData = await teamsRes.json();
 
         if (teamsRes.ok) {
-          setTeams(teamsData.teams || [])
+          setTeams(teamsData.teams || []);
         }
 
-        setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
-        setLoading(false)
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [tournamentId])
+    fetchData();
+  }, [tournamentId]);
 
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
-    )
+    );
   }
 
   if (error || !tournament) {
     return (
       <div className="min-h-screen p-5">
         <div className="glass rounded-xl p-6 max-w-md mx-auto mt-20">
-          <p className="text-red-400 mb-4">{error || 'Tournament not found'}</p>
-          <Button onClick={() => router.push('/auctioneer/tournaments')} className="w-full">
+          <p className="text-red-400 mb-4">{error || "Tournament not found"}</p>
+          <Button
+            onClick={() => router.push("/auctioneer/tournaments")}
+            className="w-full"
+          >
             Back to Tournaments
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
-  const slotsUsed = teams.length
-  const totalSlots = tournament.num_teams
-  const slotsPercent = totalSlots > 0 ? Math.round((slotsUsed / totalSlots) * 100) : 0
+  const slotsUsed = teams.length;
+  const totalSlots = tournament.num_teams;
+  const slotsPercent =
+    totalSlots > 0 ? Math.round((slotsUsed / totalSlots) * 100) : 0;
 
   return (
     <div className="min-h-screen pb-24">
@@ -116,7 +130,9 @@ export default function TournamentTeamsPage({
           <div className="flex items-center gap-3 mb-2">
             <button
               type="button"
-              onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}`)}
+              onClick={() =>
+                router.push(`/auctioneer/tournaments/${tournamentId}`)
+              }
               className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0"
             >
               <ArrowLeft className="h-4 w-4 text-muted-foreground" />
@@ -125,9 +141,7 @@ export default function TournamentTeamsPage({
               <h1 className="text-xl font-bold text-foreground">
                 {tournament.title}
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Registered Teams
-              </p>
+              <p className="text-xs text-muted-foreground">Registered Teams</p>
             </div>
           </div>
         </div>
@@ -192,7 +206,7 @@ export default function TournamentTeamsPage({
               <TeamLogo
                 logoUrl={team.logo_url}
                 shortName={team.short_name || team.name.charAt(0)}
-                color={team.color || '#F4A261'}
+                color={team.color || "#F4A261"}
               />
 
               <div className="flex-1 min-w-0">
@@ -207,17 +221,22 @@ export default function TournamentTeamsPage({
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {team.users?.email || team.owner_name || 'Unknown owner'}
+                  {team.users?.email || team.owner_name || "Unknown owner"}
                 </p>
                 <div className="flex items-center gap-3 mt-1.5">
                   <div className="flex items-center gap-1">
                     <Wallet className="h-3 w-3 text-gold" />
-                    <span className="text-xs font-semibold text-foreground">{team.budget} pts</span>
+                    <span className="text-xs font-semibold text-foreground">
+                      {team.budget} pts
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3 text-muted-foreground" />
                     <span className="text-[10px] text-muted-foreground">
-                      {new Date(team.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {new Date(team.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
                     </span>
                   </div>
                 </div>
@@ -225,7 +244,7 @@ export default function TournamentTeamsPage({
 
               {/* Status */}
               <div className="shrink-0">
-                {team.status === 'withdrawn' ? (
+                {team.status === "withdrawn" ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/15 text-destructive">
                     Withdrawn
                   </span>
@@ -240,5 +259,5 @@ export default function TournamentTeamsPage({
         )}
       </section>
     </div>
-  )
+  );
 }

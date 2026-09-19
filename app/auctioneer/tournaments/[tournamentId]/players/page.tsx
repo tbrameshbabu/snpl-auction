@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/use-auth'
-import { Button } from '@/components/ui/button'
-import { AppHeader } from '@/components/app-header'
-import { cn } from '@/lib/utils'
+import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/app-header";
+import { cn } from "@/lib/utils";
 import {
   Loader2,
   ArrowLeft,
@@ -14,109 +14,135 @@ import {
   Zap,
   Star,
   User,
-} from 'lucide-react'
+} from "lucide-react";
 
 interface Player {
-  id: string
-  name: string
-  role: string
-  batting_hand: string
-  bowling_hand: string
-  base_points: number
-  matches_played: number
-  runs_scored: number
-  wickets_taken: number
-  profile_image_url?: string
-  interest_status?: string
+  id: string;
+  name: string;
+  role: string;
+  batting_hand: string;
+  bowling_hand: string;
+  base_points: number;
+  matches_played: number;
+  runs_scored: number;
+  wickets_taken: number;
+  profile_image_url?: string;
+  interest_status?: string;
+}
+interface TournamentSummary {
+  id: string;
+  title: string;
+  status: string;
 }
 
 export default function TournamentPlayersPage({
-  params
+  params,
 }: {
-  params: Promise<{ tournamentId: string }>
+  params: Promise<{ tournamentId: string }>;
 }) {
-  const { tournamentId } = use(params)
-  const router = useRouter()
-  const { user, role, loading: authLoading } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [players, setPlayers] = useState<Player[]>([])
-  const [tournament, setTournament] = useState<any>(null)
-  const [error, setError] = useState('')
+  const { tournamentId } = use(params);
+  const router = useRouter();
+  const { user, role, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [tournament, setTournament] = useState<TournamentSummary | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!authLoading && (!user || role !== 'auctioneer')) {
-      router.push('/auth/login')
+    if (!authLoading && (!user || role !== "auctioneer")) {
+      router.push("/auth/login");
     }
-  }, [user, role, authLoading, router])
+  }, [user, role, authLoading, router]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const tournamentRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}`)
-        const tournamentData = await tournamentRes.json()
+        const tournamentRes = await fetch(
+          `/api/auctioneers/tournaments/${tournamentId}`,
+        );
+        const tournamentData = await tournamentRes.json();
 
         if (!tournamentRes.ok) {
-          setError(tournamentData.error || 'Failed to load tournament')
-          setLoading(false)
-          return
+          setError(tournamentData.error || "Failed to load tournament");
+          setLoading(false);
+          return;
         }
 
-        setTournament(tournamentData.tournament)
+        setTournament(tournamentData.tournament);
 
-        const playersRes = await fetch(`/api/auctioneers/tournaments/${tournamentId}/players`)
-        const playersData = await playersRes.json()
+        const playersRes = await fetch(
+          `/api/auctioneers/tournaments/${tournamentId}/players`,
+        );
+        const playersData = await playersRes.json();
 
         if (playersRes.ok) {
-          setPlayers(playersData.players || [])
+          setPlayers(playersData.players || []);
         }
 
-        setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
-        setLoading(false)
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [tournamentId])
+    fetchData();
+  }, [tournamentId]);
 
   const getRoleBadge = (playerRole: string) => {
     const roles: Record<string, { bg: string; text: string; label: string }> = {
-      batsman: { bg: 'bg-gold/15', text: 'text-gold', label: 'Batsman' },
-      bowler: { bg: 'bg-neon/15', text: 'text-neon', label: 'Bowler' },
-      all_rounder: { bg: 'bg-gold/15', text: 'text-gold', label: 'All-Rounder' },
-      wicket_keeper: { bg: 'bg-neon/15', text: 'text-neon', label: 'WK' },
-    }
-    const r = roles[playerRole] || { bg: 'bg-secondary', text: 'text-muted-foreground', label: playerRole }
+      batsman: { bg: "bg-gold/15", text: "text-gold", label: "Batsman" },
+      bowler: { bg: "bg-neon/15", text: "text-neon", label: "Bowler" },
+      all_rounder: {
+        bg: "bg-gold/15",
+        text: "text-gold",
+        label: "All-Rounder",
+      },
+      wicket_keeper: { bg: "bg-neon/15", text: "text-neon", label: "WK" },
+    };
+    const r = roles[playerRole] || {
+      bg: "bg-secondary",
+      text: "text-muted-foreground",
+      label: playerRole,
+    };
     return (
-      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${r.bg} ${r.text}`}>
+      <span
+        className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${r.bg} ${r.text}`}
+      >
         {r.label}
       </span>
-    )
-  }
+    );
+  };
 
-  const interestedCount = players.filter(p => p.interest_status === 'interested').length
-  const withdrawnCount = players.filter(p => p.interest_status === 'withdrawn').length
+  const interestedCount = players.filter(
+    (p) => p.interest_status === "interested",
+  ).length;
+  const withdrawnCount = players.filter(
+    (p) => p.interest_status === "withdrawn",
+  ).length;
 
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
-    )
+    );
   }
 
   if (error || !tournament) {
     return (
       <div className="min-h-screen p-5">
         <div className="glass rounded-xl p-6 max-w-md mx-auto mt-20">
-          <p className="text-red-400 mb-4">{error || 'Tournament not found'}</p>
-          <Button onClick={() => router.push('/auctioneer/tournaments')} className="w-full">
+          <p className="text-red-400 mb-4">{error || "Tournament not found"}</p>
+          <Button
+            onClick={() => router.push("/auctioneer/tournaments")}
+            className="w-full"
+          >
             Back to Tournaments
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -130,7 +156,9 @@ export default function TournamentPlayersPage({
           <div className="flex items-center gap-3 mb-2">
             <button
               type="button"
-              onClick={() => router.push(`/auctioneer/tournaments/${tournamentId}`)}
+              onClick={() =>
+                router.push(`/auctioneer/tournaments/${tournamentId}`)
+              }
               className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0"
             >
               <ArrowLeft className="h-4 w-4 text-muted-foreground" />
@@ -139,9 +167,7 @@ export default function TournamentPlayersPage({
               <h1 className="text-xl font-bold text-foreground">
                 {tournament.title}
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Player Pool
-              </p>
+              <p className="text-xs text-muted-foreground">Player Pool</p>
             </div>
           </div>
         </div>
@@ -162,7 +188,9 @@ export default function TournamentPlayersPage({
             <span className="text-lg font-bold text-neon">
               {interestedCount}
             </span>
-            <span className="text-[10px] text-muted-foreground">Interested</span>
+            <span className="text-[10px] text-muted-foreground">
+              Interested
+            </span>
           </div>
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
             <Star className="h-4 w-4 text-destructive" />
@@ -193,7 +221,8 @@ export default function TournamentPlayersPage({
               No Players Yet
             </h3>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              Players will appear here once they show interest in this tournament
+              Players will appear here once they show interest in this
+              tournament
             </p>
           </div>
         ) : (
@@ -202,7 +231,7 @@ export default function TournamentPlayersPage({
               key={player.id}
               className={cn(
                 "glass rounded-xl p-4 flex items-start gap-3",
-                player.interest_status === 'withdrawn' && "opacity-60"
+                player.interest_status === "withdrawn" && "opacity-60",
               )}
             >
               {/* Avatar */}
@@ -230,20 +259,36 @@ export default function TournamentPlayersPage({
                 {/* Stats Grid */}
                 <div className="grid grid-cols-4 gap-2 mt-2">
                   <div className="bg-secondary/50 rounded-md px-2 py-1.5 text-center">
-                    <p className="text-[9px] text-muted-foreground uppercase">Base</p>
-                    <p className="text-xs font-bold text-gold">{player.base_points}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase">
+                      Base
+                    </p>
+                    <p className="text-xs font-bold text-gold">
+                      {player.base_points}
+                    </p>
                   </div>
                   <div className="bg-secondary/50 rounded-md px-2 py-1.5 text-center">
-                    <p className="text-[9px] text-muted-foreground uppercase">Matches</p>
-                    <p className="text-xs font-bold text-foreground">{player.matches_played}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase">
+                      Matches
+                    </p>
+                    <p className="text-xs font-bold text-foreground">
+                      {player.matches_played}
+                    </p>
                   </div>
                   <div className="bg-secondary/50 rounded-md px-2 py-1.5 text-center">
-                    <p className="text-[9px] text-muted-foreground uppercase">Runs</p>
-                    <p className="text-xs font-bold text-foreground">{player.runs_scored}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase">
+                      Runs
+                    </p>
+                    <p className="text-xs font-bold text-foreground">
+                      {player.runs_scored}
+                    </p>
                   </div>
                   <div className="bg-secondary/50 rounded-md px-2 py-1.5 text-center">
-                    <p className="text-[9px] text-muted-foreground uppercase">Wickets</p>
-                    <p className="text-xs font-bold text-foreground">{player.wickets_taken}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase">
+                      Wickets
+                    </p>
+                    <p className="text-xs font-bold text-foreground">
+                      {player.wickets_taken}
+                    </p>
                   </div>
                 </div>
 
@@ -260,7 +305,7 @@ export default function TournamentPlayersPage({
 
               {/* Interest Status */}
               <div className="shrink-0">
-                {player.interest_status === 'withdrawn' ? (
+                {player.interest_status === "withdrawn" ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/15 text-destructive">
                     Withdrawn
                   </span>
@@ -275,5 +320,5 @@ export default function TournamentPlayersPage({
         )}
       </section>
     </div>
-  )
+  );
 }
