@@ -83,8 +83,8 @@ export default function PublicTournamentDetailPage({
 
       setTournament(data.tournament)
       setLoading(false)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
     }
   }
@@ -93,8 +93,8 @@ export default function PublicTournamentDetailPage({
     try {
       const res = await fetch('/api/players/interests')
       const data = await res.json()
-      const interests = data.interests || []
-      const match = interests.find((i: any) => i.tournament_id === tournamentId)
+      const interests: Array<{ tournament_id: string; status: string }> = data.interests || []
+      const match = interests.find((interest) => interest.tournament_id === tournamentId)
       setPlayerInterest(match ? match.status : null)
     } catch (e) {
       console.error('Error fetching player interest:', e)
@@ -105,8 +105,8 @@ export default function PublicTournamentDetailPage({
     try {
       const res = await fetch('/api/teams/register')
       const data = await res.json()
-      const teams = data.teams || []
-      const match = teams.find((t: any) => t.tournament_id === tournamentId)
+      const teams: Array<{ tournament_id: string; name: string }> = data.teams || []
+      const match = teams.find((team) => team.tournament_id === tournamentId)
       if (match) {
         setTeamRegistered(true)
         setTeamName(match.name)

@@ -48,6 +48,11 @@ interface TeamRegistration {
   status: string
   logo_url?: string | null
 }
+interface CompletedTournament {
+  players_bought: number
+  tournament: { id: string; title: string }
+  team: { name: string; short_name: string; color: string; logo_url?: string | null; budget: number; spent: number }
+}
 
 export default function TeamOwnerDashboardPage() {
   const router = useRouter()
@@ -59,7 +64,7 @@ export default function TeamOwnerDashboardPage() {
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(null)
   const [joining, setJoining] = useState<string | null>(null)
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
-  const [completedTournaments, setCompletedTournaments] = useState<any[]>([])
+  const [completedTournaments, setCompletedTournaments] = useState<CompletedTournament[]>([])
   const [uploadingLogo, setUploadingLogo] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [uploadTeamId, setUploadTeamId] = useState<string | null>(null)
@@ -669,7 +674,7 @@ export default function TeamOwnerDashboardPage() {
           </div>
 
           <section className="px-5 flex flex-col gap-3" aria-label="Completed auctions">
-            {completedTournaments.map((ct: any) => (
+            {completedTournaments.map((ct) => (
               <div key={ct.tournament.id} className="glass rounded-xl p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <TeamLogo

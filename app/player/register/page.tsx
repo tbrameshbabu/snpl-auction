@@ -12,6 +12,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Upload, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+const isPlayerRole = (value: string): value is 'batsman' | 'bowler' | 'all_rounder' | 'wicket_keeper' =>
+  value === 'batsman' || value === 'bowler' || value === 'all_rounder' || value === 'wicket_keeper'
+const isHand = (value: string): value is 'left' | 'right' => value === 'left' || value === 'right'
+
 export default function PlayerRegisterPage() {
   const router = useRouter()
   const { user, role, loading: authLoading } = useAuth()
@@ -66,8 +70,8 @@ export default function PlayerRegisterPage() {
       }
 
       setImageUrl(data.url)
-    } catch (err: any) {
-      setError(err.message || 'Upload failed')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -97,8 +101,8 @@ export default function PlayerRegisterPage() {
       }
 
       router.push('/player/dashboard')
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
     }
   }
@@ -112,7 +116,7 @@ export default function PlayerRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
+    <div className="min-h-screen p-4 py-8">
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
@@ -122,7 +126,7 @@ export default function PlayerRegisterPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
+                <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md">
                   {error}
                 </div>
               )}
@@ -174,7 +178,7 @@ export default function PlayerRegisterPage() {
                   <Label htmlFor="role">Playing Role *</Label>
                   <Select
                     value={formData.role}
-                    onValueChange={(value: any) => setFormData({ ...formData, role: value })}
+                    onValueChange={(value) => { if (isPlayerRole(value)) setFormData({ ...formData, role: value }) }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -192,7 +196,7 @@ export default function PlayerRegisterPage() {
                   <Label htmlFor="batting_hand">Batting Hand *</Label>
                   <Select
                     value={formData.batting_hand}
-                    onValueChange={(value: any) => setFormData({ ...formData, batting_hand: value })}
+                    onValueChange={(value) => { if (isHand(value)) setFormData({ ...formData, batting_hand: value }) }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -208,7 +212,7 @@ export default function PlayerRegisterPage() {
                   <Label htmlFor="bowling_hand">Bowling Hand *</Label>
                   <Select
                     value={formData.bowling_hand}
-                    onValueChange={(value: any) => setFormData({ ...formData, bowling_hand: value })}
+                    onValueChange={(value) => { if (isHand(value)) setFormData({ ...formData, bowling_hand: value }) }}
                   >
                     <SelectTrigger>
                       <SelectValue />

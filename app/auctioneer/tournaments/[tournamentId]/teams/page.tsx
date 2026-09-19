@@ -29,6 +29,7 @@ interface Team {
   logo_url?: string | null
   users?: { email: string }
 }
+interface TournamentSummary { id: string; title: string; status: string; num_teams: number }
 
 export default function TournamentTeamsPage({
   params
@@ -40,7 +41,7 @@ export default function TournamentTeamsPage({
   const { user, role, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(true)
   const [teams, setTeams] = useState<Team[]>([])
-  const [tournament, setTournament] = useState<any>(null)
+  const [tournament, setTournament] = useState<TournamentSummary | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -71,8 +72,8 @@ export default function TournamentTeamsPage({
         }
 
         setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
         setLoading(false)
       }
     }

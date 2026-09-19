@@ -66,8 +66,8 @@ export default function EditTournamentPage({
           budget_per_team: tournament.budget_per_team,
         })
         setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
         setLoading(false)
       }
     }
@@ -96,8 +96,8 @@ export default function EditTournamentPage({
       }
 
       router.push(`/auctioneer/tournaments/${tournamentId}`)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setSubmitting(false)
     }
   }
@@ -112,7 +112,7 @@ export default function EditTournamentPage({
 
   if (error && !formData.title) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
+      <div className="min-h-screen p-4 py-8">
         <div className="max-w-4xl mx-auto">
           <Card>
             <CardContent className="p-6">
@@ -128,7 +128,7 @@ export default function EditTournamentPage({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
+    <div className="min-h-screen p-4 py-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -154,7 +154,7 @@ export default function EditTournamentPage({
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500 rounded-lg">
+                <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
                   <p className="text-red-500 text-sm">{error}</p>
                 </div>
               )}

@@ -48,8 +48,8 @@ export default function AuctioneerRegisterPage() {
       }
 
       router.push('/auctioneer/dashboard')
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
     }
   }
@@ -63,7 +63,7 @@ export default function AuctioneerRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
+    <div className="min-h-screen p-4 py-8">
       <div className="max-w-md mx-auto">
         <Card>
           <CardHeader>
@@ -73,7 +73,7 @@ export default function AuctioneerRegisterPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
+                <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md">
                   {error}
                 </div>
               )}

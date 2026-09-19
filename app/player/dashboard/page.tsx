@@ -39,6 +39,14 @@ interface PlayerInterest {
   status: string
   tournament_id: string
 }
+interface PlayerProfile { id: string; name: string; profile_image_url?: string | null; role: string; base_points?: number; }
+interface CompletedTournament {
+  base_price: number
+  player_status: string
+  sold_price?: number
+  sold_to?: { name: string }
+  tournament: { id: string; title: string }
+}
 
 export default function PlayerDashboardPage() {
   const router = useRouter()
@@ -46,12 +54,12 @@ export default function PlayerDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [interests, setInterests] = useState<PlayerInterest[]>([])
-  const [player, setPlayer] = useState<any>(null)
+  const [player, setPlayer] = useState<PlayerProfile | null>(null)
   const [showingInterest, setShowingInterest] = useState<string | null>(null)
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(null)
-  const [completedTournaments, setCompletedTournaments] = useState<any[]>([])
+  const [completedTournaments, setCompletedTournaments] = useState<CompletedTournament[]>([])
 
   useEffect(() => {
     if (!authLoading && (!user || role !== 'player')) {
@@ -579,7 +587,7 @@ export default function PlayerDashboardPage() {
           </div>
 
           <section className="px-5 flex flex-col gap-3" aria-label="Completed auctions">
-            {completedTournaments.map((ct: any) => (
+            {completedTournaments.map((ct) => (
               <div key={ct.tournament.id} className="glass rounded-xl p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className={cn(

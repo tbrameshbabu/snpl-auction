@@ -68,8 +68,8 @@ export default function TournamentDetailPage({
 
         setTournament(data.tournament)
         setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
         setLoading(false)
       }
     }
@@ -93,8 +93,8 @@ export default function TournamentDetailPage({
         const errorData = await response.json()
         setError(errorData.error || 'Failed to publish tournament')
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setPublishing(false)
     }

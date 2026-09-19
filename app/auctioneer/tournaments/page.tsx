@@ -62,8 +62,8 @@ export default function AuctioneerTournamentsPage() {
         setTournaments(fetched)
         if (fetched.length > 0) setExpandedId(fetched[0].id)
         setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
         setLoading(false)
       }
     }

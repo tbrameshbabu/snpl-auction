@@ -130,8 +130,8 @@ export default function AuctionControlPage({
         }
 
         setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
         setLoading(false)
       }
     }
@@ -161,8 +161,8 @@ export default function AuctionControlPage({
 
       setTournament((prev) => prev ? { ...prev, status: 'live' } : prev)
       setScreen('bidding')
-    } catch (err: any) {
-      setError(err.message || 'Failed to start auction')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start auction')
     } finally {
       setStartingAuction(false)
     }
@@ -206,8 +206,8 @@ export default function AuctionControlPage({
       setOrderDirty(false)
       setOrderSaved(true)
       setTimeout(() => setOrderSaved(false), 2000)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save order')
     } finally {
       setSavingOrder(false)
     }

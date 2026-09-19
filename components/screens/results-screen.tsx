@@ -117,7 +117,7 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
           budget: t.budget ?? 0,
           playersCount: 0,
           roster: [],
-          logo_url: (t as any).logo_url || null,
+          logo_url: t.logo_url || null,
           mvpName: "—",
           mvpCost: 0,
         });
@@ -150,8 +150,8 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
 
       setLeaderboard(sorted);
       setLoading(false);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
       setLoading(false);
     }
   }, [tournamentId]);

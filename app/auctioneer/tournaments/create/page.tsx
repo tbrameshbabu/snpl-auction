@@ -15,6 +15,9 @@ import { Loader2, CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
+const isPlayerListType = (value: string): value is 'system_generated' | 'custom' =>
+  value === 'system_generated' || value === 'custom'
+
 export default function CreateTournamentPage() {
   const router = useRouter()
   const { user, role, loading: authLoading } = useAuth()
@@ -64,8 +67,8 @@ export default function CreateTournamentPage() {
       }
 
       router.push(`/auctioneer/tournaments/${data.tournament.id}`)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
     }
   }
@@ -79,7 +82,7 @@ export default function CreateTournamentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
+    <div className="min-h-screen p-4 py-8">
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
@@ -89,7 +92,7 @@ export default function CreateTournamentPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
+                <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md">
                   {error}
                 </div>
               )}
@@ -235,7 +238,7 @@ export default function CreateTournamentPage() {
                   <Label htmlFor="player_list_type">Player List Type *</Label>
                   <Select
                     value={formData.player_list_type}
-                    onValueChange={(value: any) => setFormData({ ...formData, player_list_type: value })}
+                    onValueChange={(value) => { if (isPlayerListType(value)) setFormData({ ...formData, player_list_type: value }) }}
                   >
                     <SelectTrigger>
                       <SelectValue />

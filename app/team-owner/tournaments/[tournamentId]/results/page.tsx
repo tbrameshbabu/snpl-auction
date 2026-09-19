@@ -130,7 +130,7 @@ export default function TeamOwnerResultsPage({
           roster: [],
           mvpName: '—',
           mvpCost: 0,
-          logo_url: (t as any).logo_url || null,
+          logo_url: t.logo_url || null,
         })
       })
 
@@ -163,8 +163,8 @@ export default function TeamOwnerResultsPage({
       // Get the user's team
       const teamsRes = await fetch('/api/teams/register')
       const teamsData = await teamsRes.json()
-      const myTeams = teamsData.teams || []
-      const myTeamReg = myTeams.find((t: any) => t.tournament_id === tournamentId)
+      const myTeams: Array<{ id: string; tournament_id: string }> = teamsData.teams || []
+      const myTeamReg = myTeams.find((team) => team.tournament_id === tournamentId)
 
       if (myTeamReg) {
         const found = sorted.find((t) => t.id === myTeamReg.id)
@@ -175,8 +175,8 @@ export default function TeamOwnerResultsPage({
       }
 
       setLoading(false)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
     }
   }, [tournamentId])

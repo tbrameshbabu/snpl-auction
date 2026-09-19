@@ -109,7 +109,7 @@ export default function PlayerResultsPage({
       setTournamentTitle(stateData.tournament?.title || 'Tournament')
 
       const sales: SaleData[] = stateData.results || []
-      const teams = stateData.teams || []
+      const teams: Array<{ id: string; name: string; short_name: string | null; color: string | null; budget: number; spent: number; logo_url?: string | null }> = stateData.teams || []
 
       const sold = sales.filter((s) => s.status === 'sold')
       const unsold = sales.filter((s) => s.status === 'unsold')
@@ -131,7 +131,7 @@ export default function PlayerResultsPage({
       // Build team results
       const teamMap = new Map<string, TeamResult>()
 
-      teams.forEach((t: any) => {
+      teams.forEach((t) => {
         teamMap.set(t.id, {
           id: t.id,
           rank: 0,
@@ -168,8 +168,8 @@ export default function PlayerResultsPage({
 
       setAllTeams(sorted)
       setLoading(false)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
     }
   }, [tournamentId])

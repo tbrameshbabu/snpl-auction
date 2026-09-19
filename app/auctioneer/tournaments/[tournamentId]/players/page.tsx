@@ -29,6 +29,7 @@ interface Player {
   profile_image_url?: string
   interest_status?: string
 }
+interface TournamentSummary { id: string; title: string; status: string }
 
 export default function TournamentPlayersPage({
   params
@@ -40,7 +41,7 @@ export default function TournamentPlayersPage({
   const { user, role, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(true)
   const [players, setPlayers] = useState<Player[]>([])
-  const [tournament, setTournament] = useState<any>(null)
+  const [tournament, setTournament] = useState<TournamentSummary | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -71,8 +72,8 @@ export default function TournamentPlayersPage({
         }
 
         setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
         setLoading(false)
       }
     }

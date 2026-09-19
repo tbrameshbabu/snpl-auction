@@ -55,8 +55,8 @@ export default function TournamentsPage() {
 
         setTournaments(data.tournaments || [])
         setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
         setLoading(false)
       }
     }
