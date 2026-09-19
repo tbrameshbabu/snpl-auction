@@ -1,56 +1,58 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+import { ApiError, handleRouteError } from '@/lib/api/errors'
+import { parseJsonBody, requestOrigin } from '@/lib/api/request'
 
+// Self-service signup is limited to players and team owners. Auctioneers are
+// provisioned by an operator (see supabase/migrations/20260919000000_production_hardening.sql).
 const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  role: z.enum(['player', 'team_owner', 'auctioneer']),
+  role: z.enum(['player', 'team_owner']),
 })
+
+const LANDING_PATH = {
+  player: '/player/register',
+  team_owner: '/team-owner/dashboard',
+} as const
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const body = await request.json()
-    const { email, password, role } = signupSchema.parse(body)
+    const { email, password, role } = await parseJsonBody(request, signupSchema)
 
-    // Create user in Supabase Auth (no email confirmation required)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // The public.users profile row is created by the on_auth_user_created
+    // database trigger from this metadata, so signup works with or without
+    // email confirmation (no session is needed to write the profile).
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: undefined, // Disable email confirmation
+        data: { role },
+        emailRedirectTo: `${requestOrigin(request)}/auth/callback?next=${encodeURIComponent(LANDING_PATH[role])}`,
       },
     })
 
-    if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 })
+    if (error) {
+      const status = error.status ?? 500
+      throw new ApiError(status >= 500 ? 500 : status, status >= 500 ? 'Signup is temporarily unavailable' : error.message)
+    }
+    if (!data.user) {
+      throw new ApiError(500, 'Failed to create user')
     }
 
-    if (!authData.user) {
-      return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
-    }
-
-    // Create user record with role
-    const { error: userError } = await supabase.from('users').insert({
-      id: authData.user.id,
-      email,
-      role,
-    })
-
-    if (userError) {
-      return NextResponse.json({ error: userError.message }, { status: 500 })
-    }
+    const requiresEmailConfirmation = data.session === null
 
     return NextResponse.json({
-      user: authData.user,
+      user: data.user,
       role,
-      message: 'User created successfully',
+      requiresEmailConfirmation,
+      message: requiresEmailConfirmation
+        ? 'Check your email to confirm your account before signing in'
+        : 'User created successfully',
     })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return handleRouteError(error)
   }
 }

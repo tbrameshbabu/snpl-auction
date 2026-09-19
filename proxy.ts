@@ -1,70 +1,65 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { Database } from '@/lib/database.types'
+import { supabaseAnonKey, supabaseUrl } from '@/lib/supabase/env'
+
+const ROLE_PREFIXES = {
+  '/player': 'player',
+  '/team-owner': 'team_owner',
+  '/auctioneer': 'auctioneer',
+} as const
+
+const PROTECTED_PREFIXES = [...Object.keys(ROLE_PREFIXES), '/auction']
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
+  let supabaseResponse = NextResponse.next({ request })
+
+  const supabase = createServerClient<Database>(supabaseUrl(), supabaseAnonKey(), {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll()
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+        supabaseResponse = NextResponse.next({ request })
+        cookiesToSet.forEach(({ name, value, options }) =>
+          supabaseResponse.cookies.set(name, value, options)
+        )
+      },
+    },
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  // Refresh session if expired
+  // Refreshes the session cookies when expired; must run before any early return.
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protected routes
-  const protectedRoutes = ['/player', '/team-owner', '/auctioneer', '/auction']
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
-  )
-
-  // Redirect to login if accessing protected route without auth
-  if (isProtectedRoute && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    url.searchParams.set('redirectTo', request.nextUrl.pathname)
-    return NextResponse.redirect(url)
+  // Redirect responses must carry any cookies refreshed above.
+  const redirectTo = (url: URL) => {
+    const redirect = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+    return redirect
   }
 
-  // Role-based access control
-  if (user && isProtectedRoute) {
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+  const pathname = request.nextUrl.pathname
+  const isProtectedRoute = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  if (!isProtectedRoute) {
+    return supabaseResponse
+  }
 
-    const role = userData?.role
+  if (!user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    url.search = ''
+    url.searchParams.set('redirectTo', pathname)
+    return redirectTo(url)
+  }
 
-    // Check role-specific routes
-    if (request.nextUrl.pathname.startsWith('/player') && role !== 'player') {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-    if (request.nextUrl.pathname.startsWith('/team-owner') && role !== 'team_owner') {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-    if (request.nextUrl.pathname.startsWith('/auctioneer') && role !== 'auctioneer') {
-      return NextResponse.redirect(new URL('/', request.url))
+  const requiredRole = Object.entries(ROLE_PREFIXES).find(([prefix]) => pathname.startsWith(prefix))?.[1]
+  if (requiredRole) {
+    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
+    if (profile?.role !== requiredRole) {
+      return redirectTo(new URL('/', request.url))
     }
   }
 

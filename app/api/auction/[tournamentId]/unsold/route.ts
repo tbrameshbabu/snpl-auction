@@ -1,5 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api/auth'
+import { unwrapRequired } from '@/lib/api/db'
+import { handleRouteError } from '@/lib/api/errors'
+import { parseJsonBody, parseUuid } from '@/lib/api/request'
 import { markUnsoldSchema } from '@/lib/validations/auctioneer'
 
 export async function POST(
@@ -7,79 +11,20 @@ export async function POST(
   { params }: { params: Promise<{ tournamentId: string }> }
 ) {
   try {
-    const { tournamentId } = await params
+    const tournamentId = parseUuid((await params).tournamentId, 'tournament id')
     const supabase = await createClient()
+    await requireUser(supabase)
+    const body = await parseJsonBody(request, markUnsoldSchema)
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Verify user is the auctioneer
-    const { data: auctioneer } = await supabase
-      .from('auctioneers')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (!auctioneer) {
-      return NextResponse.json({ error: 'Unauthorized - Not an auctioneer' }, { status: 403 })
-    }
-
-    const { data: tournament } = await supabase
-      .from('tournaments')
-      .select('id, auctioneer_id')
-      .eq('id', tournamentId)
-      .single()
-      
-    if (!tournament) {
-      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
-    }
-
-    if (tournament.auctioneer_id !== auctioneer.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    const body = await request.json()
-    const { tournament_player_id } = markUnsoldSchema.parse(body)
-
-    // Update tournament_player status
-    const { error: updateError } = await supabase
-      .from('tournament_players')
-      .update({ status: 'unsold' })
-      .eq('id', tournament_player_id)
-      .eq('tournament_id', tournamentId)
-
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
-    }
-
-    // Create player_sale record
-    const { data: sale, error: saleError } = await supabase
-      .from('player_sales')
-      .insert({
-        tournament_id: tournamentId,
-        tournament_player_id,
-        team_id: null,
-        final_price: null,
-        status: 'unsold',
+    const sale = unwrapRequired(
+      await supabase.rpc('mark_player_unsold', {
+        p_tournament_id: tournamentId,
+        p_tournament_player_id: body.tournament_player_id,
       })
-      .select()
-      .single()
-
-    if (saleError) {
-      return NextResponse.json({ error: saleError.message }, { status: 500 })
-    }
+    )
 
     return NextResponse.json({ sale, message: 'Player marked as unsold' })
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error) {
+    return handleRouteError(error)
   }
 }
