@@ -1,110 +1,36 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api/auth'
+import { unwrapRequired } from '@/lib/api/db'
+import { ApiError, handleRouteError } from '@/lib/api/errors'
+import { parseJsonBody, parseUuid } from '@/lib/api/request'
 import { bidSchema } from '@/lib/validations/auctioneer'
 
+// Bids are placed by the tournament auctioneer on behalf of a team.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ tournamentId: string }> }
 ) {
   try {
-    const { tournamentId } = await params
+    const tournamentId = parseUuid((await params).tournamentId, 'tournament id')
     const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    await requireUser(supabase)
+    const body = await parseJsonBody(request, bidSchema)
+    if (body.tournament_id !== tournamentId) {
+      throw new ApiError(400, 'tournament_id does not match the URL')
     }
 
-    // Verify user is the auctioneer for this tournament
-    const { data: tournament } = await supabase
-      .from('tournaments')
-      .select(`
-        id,
-        status,
-        auctioneers:auctioneer_id (
-          user_id
-        )
-      `)
-      .eq('id', tournamentId)
-      .single()
-
-    if (!tournament) {
-      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
-    }
-
-    // @ts-ignore - The types say it's an array but the join is 1:1 in our usage
-    const auctioneerUserId = tournament.auctioneers?.[0]?.user_id || tournament.auctioneers?.user_id
-
-    if (auctioneerUserId !== user.id) {
-      return NextResponse.json({ error: 'Only the auctioneer can place bids' }, { status: 403 })
-    }
-
-    if (tournament.status !== 'live') {
-      return NextResponse.json({ error: 'Tournament is not live' }, { status: 400 })
-    }
-
-    const body = await request.json()
-    const { tournament_player_id, team_id, amount } = bidSchema.parse(body)
-
-    // Verify tournament_player belongs to this tournament
-    const { data: tournamentPlayer } = await supabase
-      .from('tournament_players')
-      .select('id, status, base_price')
-      .eq('id', tournament_player_id)
-      .eq('tournament_id', tournamentId)
-      .single()
-
-    if (!tournamentPlayer) {
-      return NextResponse.json({ error: 'Player not in this tournament' }, { status: 404 })
-    }
-
-    if (tournamentPlayer.status !== 'active') {
-      return NextResponse.json({ error: 'Player is not active for bidding' }, { status: 400 })
-    }
-
-    // Verify team belongs to this tournament
-    const { data: team } = await supabase
-      .from('teams')
-      .select('id, budget, spent')
-      .eq('id', team_id)
-      .eq('tournament_id', tournamentId)
-      .single()
-
-    if (!team) {
-      return NextResponse.json({ error: 'Team not in this tournament' }, { status: 404 })
-    }
-
-    // Check if team has enough budget
-    const remainingBudget = team.budget - team.spent
-    if (amount > remainingBudget) {
-      return NextResponse.json({ error: 'Team does not have enough budget' }, { status: 400 })
-    }
-
-    // Create bid
-    const { data: bid, error: bidError } = await supabase
-      .from('bids')
-      .insert({
-        tournament_id: tournamentId,
-        tournament_player_id,
-        team_id,
-        amount,
+    const bid = unwrapRequired(
+      await supabase.rpc('place_bid', {
+        p_tournament_id: tournamentId,
+        p_tournament_player_id: body.tournament_player_id,
+        p_team_id: body.team_id,
+        p_amount: body.amount,
       })
-      .select()
-      .single()
-
-    if (bidError) {
-      return NextResponse.json({ error: bidError.message }, { status: 500 })
-    }
+    )
 
     return NextResponse.json({ bid, message: 'Bid placed successfully' })
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error) {
+    return handleRouteError(error)
   }
 }
