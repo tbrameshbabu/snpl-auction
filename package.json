@@ -13,6 +13,7 @@
     "check": "npm run lint && npm run typecheck && npm run build",
     "seed": "node scripts/seed.mjs",
     "seed:players": "node scripts/seed-players.mjs",
+    "db:check": "node scripts/db-check.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {

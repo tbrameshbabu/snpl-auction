@@ -38,15 +38,15 @@ add a new `<timestamp>_name.sql` file instead (the CLI ignores files that do not
 
 ```bash
 # No global install: run the pinned CLI through npx
-npx supabase@2 login
-npx supabase@2 link --project-ref your-project-ref
+npx supabase@2.117.0 login
+npx supabase@2.117.0 link --project-ref your-project-ref
 
 # Preview, then apply pending migrations
-npx supabase@2 db push --dry-run
-npx supabase@2 db push
+npx supabase@2.117.0 db push --dry-run
+npx supabase@2.117.0 db push
 ```
 
-For a disposable local stack use `npx supabase@2 start` / `db reset` instead (see `../README.md`).
+For a disposable local stack use `npx supabase@2.117.0 start` / `db reset` instead (see `../README.md`).
 
 ### Option 2: Supabase Dashboard
 
@@ -76,13 +76,14 @@ After running migrations, verify:
 5. The auction RPCs exist and are executable only by `authenticated`:
    `select proname from pg_proc where pronamespace = 'public'::regnamespace and proname like '%auction%';`
 
-On a local stack, `npx supabase@2 test db` runs `../tests/auction_hardening.test.sql`, which
-asserts the RLS, privilege and state-machine behaviour above.
+On a local stack, `npx supabase@2.117.0 test db` runs `../tests/auction_hardening.test.sql`, which
+asserts the RLS, privilege and state-machine behaviour above, and `npm run db:check` exercises the
+same contract through the REST/RPC API as real users (including concurrent bids and sales).
 
 ## Rollback
 
 There is no automated rollback. **Dropping tables destroys data**; only do this on a disposable
-local/test database (`npx supabase@2 db reset` is the safe equivalent). On a real project, write a
+local/test database (`npx supabase@2.117.0 db reset` is the safe equivalent). On a real project, write a
 new forward migration that reverses the change instead.
 
 ```sql

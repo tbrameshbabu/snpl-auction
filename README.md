@@ -13,7 +13,7 @@ Storage, RLS) · Tailwind CSS 3 + shadcn/ui · Zod.
 | Node.js      | 24 (see `.nvmrc`; `>=20.19` supported) | `nvm use` picks it up. On machines with NVM: `source "$HOME/.nvm/nvm.sh" && nvm use` |
 | npm          | 10+                                    | ships with Node                                                                      |
 | Docker       | any recent                             | only for the local Supabase stack                                                    |
-| Supabase CLI | pinned via `npx supabase@2`            | do **not** `npm install -g supabase` (unsupported by Supabase)                       |
+| Supabase CLI | pinned via `npx supabase@2.117.0` (the version validated here)            | do **not** `npm install -g supabase` (unsupported by Supabase)                       |
 
 ## Setup
 
@@ -38,6 +38,7 @@ npm run dev        # http://localhost:3000
 | `npm run format` / `npm run format:check` | Prettier write / check                                                                         |
 | `npm run check`                           | `lint` → `typecheck` → `build` (what CI runs)                                                  |
 | `npm run seed` / `npm run seed:players`   | Development seed scripts against a **local** Supabase stack (see Seeding)                      |
+| `npm run db:check`                        | Integration check of RLS + auction RPCs (incl. concurrent bids/sales) through the local REST API |
 
 Lint policy: `@typescript-eslint/no-explicit-any`, `ban-ts-comment` and unused vars/imports are
 errors (`_`-prefixed names are allowed). The React Compiler heuristics
@@ -72,17 +73,18 @@ npm run build
 ## Local Supabase (disposable, recommended for development)
 
 ```bash
-npx supabase@2 start            # first run pulls Docker images
-npx supabase@2 status           # prints API URL, anon key, service_role key
-npx supabase@2 db reset         # recreate DB and re-apply supabase/migrations/*.sql
-npx supabase@2 stop             # add --no-backup to discard data
+npx supabase@2.117.0 start            # first run pulls Docker images
+npx supabase@2.117.0 status           # prints API URL, anon key, service_role key
+npx supabase@2.117.0 db reset         # recreate DB and re-apply supabase/migrations/*.sql
+npx supabase@2.117.0 stop             # add --no-backup to discard data
 ```
 
 Put the printed `API URL` / `anon key` into `.env.local`. `supabase/config.toml` is the CLI
 project config (ports, auth settings) and is committed; `supabase/.temp` is ignored.
 
 ```bash
-npx supabase@2 test db          # pgTAP: supabase/tests/*.test.sql (RLS, RPC state machine, storage)
+npx supabase@2.117.0 test db    # pgTAP: supabase/tests/*.test.sql (RLS, RPC state machine, storage)
+npm run db:check                # scripts/db-check.mjs: same env as the seeds; creates and removes its own users
 npm run smoke                   # HTTP smoke against a running `npm run dev`/`npm start`
 ```
 
@@ -91,7 +93,7 @@ npm run smoke                   # HTTP smoke against a running `npm run dev`/`np
 `npm run seed` creates 1 auctioneer, 4 team owners (+ teams) and 5 players with a published
 tournament; `npm run seed:players` adds 25 more players. Both are idempotent. Accounts are
 created with the Auth admin API using the local `SUPABASE_SERVICE_ROLE_KEY` (printed by
-`npx supabase@2 status`) so they are confirmed immediately, and the seed auctioneer is promoted
+`npx supabase@2.117.0 status`) so they are confirmed immediately, and the seed auctioneer is promoted
 with the same privileged `update public.users set role = 'auctioneer'` an operator would run.
 Everything after sign-in (tournament, teams, interests) goes through the normal anon-key API
 and RLS.
@@ -133,7 +135,7 @@ enforce data access and the auction state machine.
 ## Deployment
 
 1. **Database**: apply `supabase/migrations/*.sql` in order to the target project
-   (`npx supabase@2 link --project-ref <ref> && npx supabase@2 db push`). Migrations are
+   (`npx supabase@2.117.0 link --project-ref <ref> && npx supabase@2.117.0 db push`). Migrations are
    forward-only; never edit an applied migration — add a new one.
    Review any `WARNING` output from `20260919000000_production_hardening.sql`: it reports
    (but never deletes) legacy rows that fail the new same-tournament constraints or have more
@@ -164,7 +166,7 @@ using the non-secret placeholder Supabase env above.
 - `app/` App Router pages and `app/api/**` route handlers
 - `components/ui/` shadcn/ui primitives (themed via CSS variables in `app/globals.css` and `tailwind.config.ts`)
 - `lib/supabase/` typed browser/server Supabase clients (`lib/database.types.ts` is generated:
-  `npx supabase@2 gen types typescript --local --schema public > lib/database.types.ts`)
+  `npx supabase@2.117.0 gen types typescript --local --schema public > lib/database.types.ts`)
 - `lib/api/` route-handler helpers (auth, Zod body parsing, error mapping, uploads)
 - `supabase/migrations/` forward-only SQL migrations; `supabase/README.md` for DB details
 - `scripts/` development seed scripts

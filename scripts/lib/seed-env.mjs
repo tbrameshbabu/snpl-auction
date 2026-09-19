@@ -66,7 +66,7 @@ export function loadSeedEnv() {
   }
   if (!serviceRoleKey) {
     console.error(
-      '❌ Missing SUPABASE_SERVICE_ROLE_KEY (printed by `npx supabase@2 status` for the local stack)',
+      '❌ Missing SUPABASE_SERVICE_ROLE_KEY (printed by `npx supabase@2.117.0 status` for the local stack)',
     )
     process.exit(1)
   }

@@ -21,6 +21,13 @@ export interface UseAuctionStateResult {
   refresh: () => Promise<void>;
 }
 
+interface Snapshot {
+  tournamentId: string;
+  state: AuctionState | null;
+  error: string | null;
+  lastUpdated: Date | null;
+}
+
 /**
  * Polls /api/auction/[id]/state on a fixed schedule.
  * - The interval is created once per (tournamentId, pollIntervalMs) and is never
@@ -29,16 +36,14 @@ export interface UseAuctionStateResult {
  *   pending is skipped rather than overlapping.
  * - Each request carries a sequence number; responses older than the latest
  *   applied one are discarded, so state never moves backwards.
- * - Requests are aborted on unmount / id change.
+ * - Requests are aborted on unmount / id change, and a snapshot is only ever
+ *   exposed for the tournament it was fetched for.
  */
 export function useAuctionState(
   tournamentId: string,
   { pollIntervalMs = 0, enabled = true }: UseAuctionStateOptions = {},
 ): UseAuctionStateResult {
-  const [state, setState] = useState<AuctionState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
 
   const seqRef = useRef(0);
   const appliedSeqRef = useRef(0);
@@ -50,6 +55,16 @@ export function useAuctionState(
     const seq = ++seqRef.current;
     const controller = new AbortController();
     controllerRef.current = controller;
+    const isStale = () =>
+      controller.signal.aborted || seq < appliedSeqRef.current;
+
+    const fail = (message: string) =>
+      setSnapshot((prev) => ({
+        tournamentId,
+        state: prev?.tournamentId === tournamentId ? prev.state : null,
+        error: message,
+        lastUpdated: prev?.tournamentId === tournamentId ? prev.lastUpdated : null,
+      }));
 
     const run = (async () => {
       try {
@@ -57,23 +72,30 @@ export function useAuctionState(
           signal: controller.signal,
           cache: "no-store",
         });
-        if (controller.signal.aborted || seq < appliedSeqRef.current) return;
+        if (isStale()) return;
         if (!res.ok) {
-          setError(await readApiError(res, "Failed to load auction state"));
+          const message = await readApiError(res, "Failed to load auction state");
+          if (!isStale()) fail(message);
           return;
         }
         const data = (await res.json()) as AuctionState;
-        if (controller.signal.aborted || seq < appliedSeqRef.current) return;
+        if (isStale()) return;
         appliedSeqRef.current = seq;
-        setState(data);
-        setError(null);
-        setLastUpdated(new Date());
+        setSnapshot({
+          tournamentId,
+          state: data,
+          error: null,
+          lastUpdated: new Date(),
+        });
       } catch (err) {
         if (controller.signal.aborted) return;
-        setError(toErrorMessage(err, "Failed to load auction state"));
+        fail(toErrorMessage(err, "Failed to load auction state"));
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
-        inFlightRef.current = null;
+        // A newer request may already own the refs (e.g. after an abort).
+        if (controllerRef.current === controller) {
+          controllerRef.current = null;
+          inFlightRef.current = null;
+        }
       }
     })();
 
@@ -83,7 +105,6 @@ export function useAuctionState(
 
   useEffect(() => {
     if (!enabled) return;
-    setLoading(true);
     void load();
     const timer =
       pollIntervalMs > 0
@@ -104,5 +125,12 @@ export function useAuctionState(
     await load();
   }, [load]);
 
-  return { state, loading, error, lastUpdated, refresh };
+  const current = snapshot?.tournamentId === tournamentId ? snapshot : null;
+  return {
+    state: current?.state ?? null,
+    loading: current === null,
+    error: current?.error ?? null,
+    lastUpdated: current?.lastUpdated ?? null,
+    refresh,
+  };
 }
