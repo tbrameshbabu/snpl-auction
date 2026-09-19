@@ -13,7 +13,12 @@ export type TournamentStatus =
   | "completed"
   | "cancelled";
 
-export type TournamentPlayerStatus = "pending" | "active" | "sold" | "unsold" | "re_auction";
+export type TournamentPlayerStatus =
+  | "pending"
+  | "active"
+  | "sold"
+  | "unsold"
+  | "re_auction";
 
 export interface AuctionTournament {
   id: string;
@@ -77,7 +82,10 @@ export interface AuctionSale {
   tournament_players: {
     id: string;
     base_price: number;
-    players: Pick<AuctionPlayerProfile, "id" | "name" | "profile_image_url" | "role"> | null;
+    players: Pick<
+      AuctionPlayerProfile,
+      "id" | "name" | "profile_image_url" | "role"
+    > | null;
   } | null;
   teams: Pick<AuctionTeam, "id" | "name" | "short_name" | "color"> | null;
 }
@@ -155,11 +163,13 @@ export function deriveBidding(state: AuctionState): BiddingView {
     ? state.bids.filter((b) => b.tournament_player_id === player.id)
     : [];
   const sorted = [...bids].sort(
-    (a, b) => b.amount - a.amount || b.created_at.localeCompare(a.created_at)
+    (a, b) => b.amount - a.amount || b.created_at.localeCompare(a.created_at),
   );
   const top = sorted[0];
   const teamName = (bid: AuctionBid) =>
-    bid.teams?.name ?? state.teams.find((t) => t.id === bid.team_id)?.name ?? "Unknown team";
+    bid.teams?.name ??
+    state.teams.find((t) => t.id === bid.team_id)?.name ??
+    "Unknown team";
   return {
     currentAmount: top?.amount ?? player?.base_price ?? 0,
     leadingTeamId: top?.team_id ?? null,
@@ -194,7 +204,7 @@ export type BidBlocker = "leading" | "budget" | "roster";
 export function getBidBlocker(
   team: TeamSummary,
   bidding: BiddingView,
-  amount: number
+  amount: number,
 ): BidBlocker | null {
   if (team.id === bidding.leadingTeamId) return "leading";
   if (team.playersBought >= team.maxPlayers) return "roster";

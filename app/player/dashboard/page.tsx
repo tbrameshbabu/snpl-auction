@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/use-auth'
-import { AppHeader } from '@/components/app-header'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { AppHeader } from "@/components/app-header";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Loader2,
   Check,
@@ -21,205 +21,245 @@ import {
   Calendar,
   User,
   Wallet,
-} from 'lucide-react'
+} from "lucide-react";
 
 interface Tournament {
-  id: string
-  title: string
-  description: string
-  auction_date: string
-  auction_time: string
-  status: string
-  num_teams: number
-  budget_per_team: number
+  id: string;
+  title: string;
+  description: string;
+  auction_date: string;
+  auction_time: string;
+  status: string;
+  num_teams: number;
+  budget_per_team: number;
 }
 
 interface PlayerInterest {
-  id: string
-  status: string
-  tournament_id: string
+  id: string;
+  status: string;
+  tournament_id: string;
 }
-interface PlayerProfile { id: string; name: string; profile_image_url?: string | null; role: string; base_points?: number; }
+interface PlayerProfile {
+  id: string;
+  name: string;
+  profile_image_url?: string | null;
+  role: string;
+  base_points?: number;
+}
 interface CompletedTournament {
-  base_price: number
-  player_status: string
-  sold_price?: number
-  sold_to?: { name: string }
-  tournament: { id: string; title: string }
+  base_price: number;
+  player_status: string;
+  sold_price?: number;
+  sold_to?: { name: string };
+  tournament: { id: string; title: string };
 }
 
 export default function PlayerDashboardPage() {
-  const router = useRouter()
-  const { user, role, loading: authLoading } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [tournaments, setTournaments] = useState<Tournament[]>([])
-  const [interests, setInterests] = useState<PlayerInterest[]>([])
-  const [player, setPlayer] = useState<PlayerProfile | null>(null)
-  const [showingInterest, setShowingInterest] = useState<string | null>(null)
-  const [withdrawing, setWithdrawing] = useState<string | null>(null)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(null)
-  const [completedTournaments, setCompletedTournaments] = useState<CompletedTournament[]>([])
+  const router = useRouter();
+  const { user, role, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [interests, setInterests] = useState<PlayerInterest[]>([]);
+  const [player, setPlayer] = useState<PlayerProfile | null>(null);
+  const [showingInterest, setShowingInterest] = useState<string | null>(null);
+  const [withdrawing, setWithdrawing] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState<string | null>(
+    null,
+  );
+  const [completedTournaments, setCompletedTournaments] = useState<
+    CompletedTournament[]
+  >([]);
 
   useEffect(() => {
-    if (!authLoading && (!user || role !== 'player')) {
-      router.push('/auth/login')
-      return
+    if (!authLoading && (!user || role !== "player")) {
+      router.push("/auth/login");
+      return;
     }
 
-    if (user && role === 'player') {
-      fetchPlayerData()
+    if (user && role === "player") {
+      fetchPlayerData();
     }
-  }, [user, role, authLoading, router])
+  }, [user, role, authLoading, router]);
 
   const fetchPlayerData = async () => {
     try {
       // Fetch player profile
-      const profileRes = await fetch('/api/players/register')
+      const profileRes = await fetch("/api/players/register");
       if (profileRes.status === 404) {
-        router.push('/player/register')
-        return
+        router.push("/player/register");
+        return;
       }
-      const profileData = await profileRes.json()
-      setPlayer(profileData.player)
+      const profileData = await profileRes.json();
+      setPlayer(profileData.player);
 
       // Fetch published tournaments
-      const tournamentsRes = await fetch('/api/auctioneers/tournaments?status=published,live')
-      const tournamentsData = await tournamentsRes.json()
-      const fetchedTournaments = tournamentsData.tournaments || []
-      const sortedTournaments = fetchedTournaments.sort((a: Tournament, b: Tournament) => {
-        if (a.status === 'live' && b.status !== 'live') return -1
-        if (a.status !== 'live' && b.status === 'live') return 1
-        return new Date(a.auction_date).getTime() - new Date(b.auction_date).getTime()
-      })
-      setTournaments(sortedTournaments)
+      const tournamentsRes = await fetch(
+        "/api/auctioneers/tournaments?status=published,live",
+      );
+      const tournamentsData = await tournamentsRes.json();
+      const fetchedTournaments = tournamentsData.tournaments || [];
+      const sortedTournaments = fetchedTournaments.sort(
+        (a: Tournament, b: Tournament) => {
+          if (a.status === "live" && b.status !== "live") return -1;
+          if (a.status !== "live" && b.status === "live") return 1;
+          return (
+            new Date(a.auction_date).getTime() -
+            new Date(b.auction_date).getTime()
+          );
+        },
+      );
+      setTournaments(sortedTournaments);
 
       // Auto-expand the first tournament
       if (fetchedTournaments.length > 0) {
-        setExpandedId(fetchedTournaments[0].id)
+        setExpandedId(fetchedTournaments[0].id);
       }
 
       // Fetch player interests
-      const interestsRes = await fetch('/api/players/interests')
-      const interestsData = await interestsRes.json()
-      setInterests(interestsData.interests || [])
+      const interestsRes = await fetch("/api/players/interests");
+      const interestsData = await interestsRes.json();
+      setInterests(interestsData.interests || []);
 
       // Fetch completed tournaments
       try {
-        const completedRes = await fetch('/api/players/completed-tournaments')
+        const completedRes = await fetch("/api/players/completed-tournaments");
         if (completedRes.ok) {
-          const completedData = await completedRes.json()
-          setCompletedTournaments(completedData.tournaments || [])
+          const completedData = await completedRes.json();
+          setCompletedTournaments(completedData.tournaments || []);
         }
       } catch (e) {
-        console.error('Error fetching completed tournaments:', e)
+        console.error("Error fetching completed tournaments:", e);
       }
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.error("Error fetching data:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleShowInterest = async (tournamentId: string) => {
-    setShowingInterest(tournamentId)
+    setShowingInterest(tournamentId);
     try {
-      const response = await fetch('/api/players/interests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      const response = await fetch("/api/players/interests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           tournament_id: tournamentId,
-          status: 'interested'
+          status: "interested",
         }),
-      })
+      });
 
       if (response.ok) {
-        const interestsRes = await fetch('/api/players/interests')
-        const interestsData = await interestsRes.json()
-        setInterests(interestsData.interests || [])
+        const interestsRes = await fetch("/api/players/interests");
+        const interestsData = await interestsRes.json();
+        setInterests(interestsData.interests || []);
       } else {
-        const errorData = await response.json()
-        console.error('Failed to show interest:', errorData)
+        const errorData = await response.json();
+        console.error("Failed to show interest:", errorData);
       }
     } catch (error) {
-      console.error('Error showing interest:', error)
+      console.error("Error showing interest:", error);
     } finally {
-      setShowingInterest(null)
+      setShowingInterest(null);
     }
-  }
+  };
 
   const hasInterest = (tournamentId: string) => {
-    return interests.some(i => i.tournament_id === tournamentId && i.status === 'interested')
-  }
+    return interests.some(
+      (i) => i.tournament_id === tournamentId && i.status === "interested",
+    );
+  };
 
   const isWithdrawn = (tournamentId: string) => {
-    return interests.some(i => i.tournament_id === tournamentId && i.status === 'withdrawn')
-  }
+    return interests.some(
+      (i) => i.tournament_id === tournamentId && i.status === "withdrawn",
+    );
+  };
 
   const handleWithdraw = async (tournamentId: string) => {
-    setWithdrawing(tournamentId)
-    setShowWithdrawConfirm(null)
+    setWithdrawing(tournamentId);
+    setShowWithdrawConfirm(null);
     try {
-      const response = await fetch('/api/players/interests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      const response = await fetch("/api/players/interests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           tournament_id: tournamentId,
-          status: 'withdrawn'
+          status: "withdrawn",
         }),
-      })
+      });
 
       if (response.ok) {
-        const interestsRes = await fetch('/api/players/interests')
-        const interestsData = await interestsRes.json()
-        setInterests(interestsData.interests || [])
+        const interestsRes = await fetch("/api/players/interests");
+        const interestsData = await interestsRes.json();
+        setInterests(interestsData.interests || []);
       }
     } catch (error) {
-      console.error('Error withdrawing:', error)
+      console.error("Error withdrawing:", error);
     } finally {
-      setWithdrawing(null)
+      setWithdrawing(null);
     }
-  }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'published': return 'text-neon'
-      case 'live': return 'text-gold'
-      case 'draft': return 'text-muted-foreground'
-      case 'completed': return 'text-destructive'
-      default: return 'text-muted-foreground'
+      case "published":
+        return "text-neon";
+      case "live":
+        return "text-gold";
+      case "draft":
+        return "text-muted-foreground";
+      case "completed":
+        return "text-destructive";
+      default:
+        return "text-muted-foreground";
     }
-  }
+  };
 
   const getStatusBg = (status: string) => {
     switch (status) {
-      case 'published': return 'bg-neon/15'
-      case 'live': return 'bg-gold/15'
-      case 'draft': return 'bg-secondary'
-      case 'completed': return 'bg-destructive/15'
-      default: return 'bg-secondary'
+      case "published":
+        return "bg-neon/15";
+      case "live":
+        return "bg-gold/15";
+      case "draft":
+        return "bg-secondary";
+      case "completed":
+        return "bg-destructive/15";
+      default:
+        return "bg-secondary";
     }
-  }
+  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'published': return 'Open'
-      case 'live': return 'Live'
-      case 'draft': return 'Draft'
-      case 'completed': return 'Completed'
-      default: return status
+      case "published":
+        return "Open";
+      case "live":
+        return "Live";
+      case "draft":
+        return "Draft";
+      case "completed":
+        return "Completed";
+      default:
+        return status;
     }
-  }
+  };
 
-  const interestedCount = interests.filter(i => i.status === 'interested').length
-  const withdrawnCount = interests.filter(i => i.status === 'withdrawn').length
+  const interestedCount = interests.filter(
+    (i) => i.status === "interested",
+  ).length;
+  const withdrawnCount = interests.filter(
+    (i) => i.status === "withdrawn",
+  ).length;
 
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
-    )
+    );
   }
 
   return (
@@ -245,10 +285,11 @@ export default function PlayerDashboardPage() {
             )}
             <div>
               <h1 className="text-xl font-bold text-foreground">
-                Welcome back, {player?.name || 'Player'}
+                Welcome back, {player?.name || "Player"}
               </h1>
               <p className="text-xs text-muted-foreground capitalize">
-                {player?.role?.replace('_', ' ') || 'Player'} · Manage your tournament preferences
+                {player?.role?.replace("_", " ") || "Player"} · Manage your
+                tournament preferences
               </p>
             </div>
           </div>
@@ -277,7 +318,9 @@ export default function PlayerDashboardPage() {
             <span className="text-lg font-bold text-neon">
               {interestedCount}
             </span>
-            <span className="text-[10px] text-muted-foreground">Interested</span>
+            <span className="text-[10px] text-muted-foreground">
+              Interested
+            </span>
           </div>
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
             <XCircle className="h-4 w-4 text-destructive" />
@@ -304,16 +347,20 @@ export default function PlayerDashboardPage() {
         {tournaments.length === 0 ? (
           <div className="glass rounded-xl p-8 text-center">
             <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-sm text-muted-foreground">No tournaments available</p>
-            <p className="text-xs text-muted-foreground mt-1">Check back later for upcoming tournaments</p>
+            <p className="text-sm text-muted-foreground">
+              No tournaments available
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Check back later for upcoming tournaments
+            </p>
           </div>
         ) : (
           tournaments.map((tournament) => {
-            const interested = hasInterest(tournament.id)
-            const withdrawn = isWithdrawn(tournament.id)
-            const isPending = !interested && !withdrawn
-            const isExpanded = expandedId === tournament.id
-            const auctionDate = new Date(tournament.auction_date)
+            const interested = hasInterest(tournament.id);
+            const withdrawn = isWithdrawn(tournament.id);
+            const isPending = !interested && !withdrawn;
+            const isExpanded = expandedId === tournament.id;
+            const auctionDate = new Date(tournament.auction_date);
 
             return (
               <div
@@ -321,13 +368,15 @@ export default function PlayerDashboardPage() {
                 className={cn(
                   "glass rounded-xl overflow-hidden transition-all duration-300",
                   interested && "border-neon/40",
-                  withdrawn && "border-destructive/30 opacity-60"
+                  withdrawn && "border-destructive/30 opacity-60",
                 )}
               >
                 {/* Card Header - always visible */}
                 <button
                   type="button"
-                  onClick={() => setExpandedId(isExpanded ? null : tournament.id)}
+                  onClick={() =>
+                    setExpandedId(isExpanded ? null : tournament.id)
+                  }
                   className="w-full p-4 flex items-center gap-3 text-left"
                 >
                   <div
@@ -337,7 +386,7 @@ export default function PlayerDashboardPage() {
                         ? "bg-neon/15"
                         : withdrawn
                           ? "bg-destructive/15"
-                          : "bg-gold/10"
+                          : "bg-gold/10",
                     )}
                   >
                     {interested ? (
@@ -357,20 +406,25 @@ export default function PlayerDashboardPage() {
                         className={cn(
                           "px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0",
                           getStatusBg(tournament.status),
-                          getStatusColor(tournament.status)
+                          getStatusColor(tournament.status),
                         )}
                       >
                         {getStatusLabel(tournament.status)}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {tournament.auction_time}
+                      {auctionDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}{" "}
+                      at {tournament.auction_time}
                     </p>
                   </div>
                   <ChevronRight
                     className={cn(
                       "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                      isExpanded && "rotate-90"
+                      isExpanded && "rotate-90",
                     )}
                   />
                 </button>
@@ -394,7 +448,10 @@ export default function PlayerDashboardPage() {
                             Date
                           </p>
                           <p className="text-sm font-bold text-foreground">
-                            {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {auctionDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}
                           </p>
                         </div>
                       </div>
@@ -434,7 +491,7 @@ export default function PlayerDashboardPage() {
                     </div>
 
                     {/* Live Auction Block */}
-                    {tournament.status === 'live' && (
+                    {tournament.status === "live" && (
                       <div className="flex flex-col gap-2 p-3 rounded-lg bg-neon/10 border border-neon/30 mb-3">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="h-2 w-2 rounded-full bg-neon animate-pulse shrink-0" />
@@ -444,7 +501,11 @@ export default function PlayerDashboardPage() {
                         </div>
                         <Button
                           size="lg"
-                          onClick={() => router.push(`/player/tournaments/${tournament.id}/auction`)}
+                          onClick={() =>
+                            router.push(
+                              `/player/tournaments/${tournament.id}/auction`,
+                            )
+                          }
                           className="w-full bg-neon text-background hover:bg-neon/90 font-bold shadow-[0_0_15px_hsl(var(--neon)/0.2)]"
                         >
                           <Zap className="h-4 w-4 mr-2" />
@@ -454,7 +515,7 @@ export default function PlayerDashboardPage() {
                     )}
 
                     {/* Interest Actions — matches player-interest-screen pattern */}
-                    {isPending && tournament.status !== 'live' && (
+                    {isPending && tournament.status !== "live" && (
                       <div className="flex gap-2">
                         <Button
                           size="lg"
@@ -467,7 +528,9 @@ export default function PlayerDashboardPage() {
                           ) : (
                             <Check className="h-4 w-4 mr-1.5" />
                           )}
-                          {showingInterest === tournament.id ? 'Processing...' : 'Show Interest'}
+                          {showingInterest === tournament.id
+                            ? "Processing..."
+                            : "Show Interest"}
                         </Button>
                         <Button
                           size="lg"
@@ -489,11 +552,13 @@ export default function PlayerDashboardPage() {
                             You have shown interest in this tournament
                           </span>
                         </div>
-                        {tournament.status !== 'live' && (
+                        {tournament.status !== "live" && (
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => setShowWithdrawConfirm(tournament.id)}
+                            onClick={() =>
+                              setShowWithdrawConfirm(tournament.id)
+                            }
                             className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs self-start"
                           >
                             <XCircle className="h-3.5 w-3.5 mr-1" />
@@ -536,11 +601,12 @@ export default function PlayerDashboardPage() {
                             Confirm Withdrawal
                           </h4>
                           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                            Are you sure you want to withdraw from{' '}
+                            Are you sure you want to withdraw from{" "}
                             <span className="text-foreground font-medium">
                               {tournament.title}
                             </span>
-                            ? You can re-confirm interest later if the auction hasn't started.
+                            ? You can re-confirm interest later if the auction
+                            hasn't started.
                           </p>
                         </div>
                       </div>
@@ -569,7 +635,7 @@ export default function PlayerDashboardPage() {
                   </div>
                 )}
               </div>
-            )
+            );
           })
         )}
       </section>
@@ -586,15 +652,22 @@ export default function PlayerDashboardPage() {
             </p>
           </div>
 
-          <section className="px-5 flex flex-col gap-3" aria-label="Completed auctions">
+          <section
+            className="px-5 flex flex-col gap-3"
+            aria-label="Completed auctions"
+          >
             {completedTournaments.map((ct) => (
               <div key={ct.tournament.id} className="glass rounded-xl p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className={cn(
-                    "h-11 w-11 rounded-lg flex items-center justify-center shrink-0",
-                    ct.player_status === 'sold' ? 'bg-neon/15' : 'bg-destructive/10'
-                  )}>
-                    {ct.player_status === 'sold' ? (
+                  <div
+                    className={cn(
+                      "h-11 w-11 rounded-lg flex items-center justify-center shrink-0",
+                      ct.player_status === "sold"
+                        ? "bg-neon/15"
+                        : "bg-destructive/10",
+                    )}
+                  >
+                    {ct.player_status === "sold" ? (
                       <Check className="h-5 w-5 text-neon" />
                     ) : (
                       <XCircle className="h-5 w-5 text-destructive" />
@@ -605,36 +678,51 @@ export default function PlayerDashboardPage() {
                       {ct.tournament.title}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {ct.player_status === 'sold' 
-                        ? `Sold to ${ct.sold_to?.name || 'Unknown'} for ${ct.sold_price} pts`
-                        : 'Unsold'
-                      }
+                      {ct.player_status === "sold"
+                        ? `Sold to ${ct.sold_to?.name || "Unknown"} for ${ct.sold_price} pts`
+                        : "Unsold"}
                     </p>
                   </div>
-                  <span className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-bold",
-                    ct.player_status === 'sold' ? 'bg-neon/15 text-neon' : 'bg-destructive/15 text-destructive'
-                  )}>
-                    {ct.player_status === 'sold' ? 'SOLD' : 'UNSOLD'}
+                  <span
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                      ct.player_status === "sold"
+                        ? "bg-neon/15 text-neon"
+                        : "bg-destructive/15 text-destructive",
+                    )}
+                  >
+                    {ct.player_status === "sold" ? "SOLD" : "UNSOLD"}
                   </span>
                 </div>
 
-                {ct.player_status === 'sold' && ct.sold_to && (
+                {ct.player_status === "sold" && ct.sold_to && (
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="bg-secondary/50 rounded-lg p-2 text-center">
-                      <span className="text-[10px] text-muted-foreground">Sold For</span>
-                      <p className="text-sm font-bold text-neon">{ct.sold_price} pts</p>
+                      <span className="text-[10px] text-muted-foreground">
+                        Sold For
+                      </span>
+                      <p className="text-sm font-bold text-neon">
+                        {ct.sold_price} pts
+                      </p>
                     </div>
                     <div className="bg-secondary/50 rounded-lg p-2 text-center">
-                      <span className="text-[10px] text-muted-foreground">Base Price</span>
-                      <p className="text-sm font-bold text-foreground">{ct.base_price} pts</p>
+                      <span className="text-[10px] text-muted-foreground">
+                        Base Price
+                      </span>
+                      <p className="text-sm font-bold text-foreground">
+                        {ct.base_price} pts
+                      </p>
                     </div>
                   </div>
                 )}
 
                 <Button
                   size="lg"
-                  onClick={() => router.push(`/player/tournaments/${ct.tournament.id}/results`)}
+                  onClick={() =>
+                    router.push(
+                      `/player/tournaments/${ct.tournament.id}/results`,
+                    )
+                  }
                   className="w-full bg-gold text-background hover:bg-gold/90 font-semibold"
                 >
                   <Trophy className="h-4 w-4 mr-1.5" />
@@ -655,12 +743,12 @@ export default function PlayerDashboardPage() {
               Before the Auction Begins
             </h4>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Show interest in tournaments to be included in the auction pool. 
+              Show interest in tournaments to be included in the auction pool.
               Once the auction starts, your participation status will be locked.
             </p>
           </div>
         </div>
       </section>
     </div>
-  )
+  );
 }

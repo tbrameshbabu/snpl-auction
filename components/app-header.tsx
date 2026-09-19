@@ -68,7 +68,7 @@ export function AppHeader() {
                 <span
                   className={cn(
                     "status-chip hidden sm:inline-flex",
-                    getRoleBadgeColor(role)
+                    getRoleBadgeColor(role),
                   )}
                 >
                   {getRoleLabel(role)}

@@ -13,12 +13,12 @@ export default function Page() {
   // Redirect authenticated users to their respective dashboards
   useEffect(() => {
     if (!loading && user && role) {
-      if (role === 'player') {
-        router.push('/player/dashboard');
-      } else if (role === 'auctioneer') {
-        router.push('/auctioneer/tournaments');
-      } else if (role === 'team_owner') {
-        router.push('/tournaments');
+      if (role === "player") {
+        router.push("/player/dashboard");
+      } else if (role === "auctioneer") {
+        router.push("/auctioneer/tournaments");
+      } else if (role === "team_owner") {
+        router.push("/tournaments");
       }
     }
   }, [user, role, loading, router]);

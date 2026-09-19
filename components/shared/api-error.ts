@@ -11,18 +11,27 @@ interface IssueLike {
 
 function issueToString(issue: IssueLike): string | null {
   if (typeof issue.message !== "string") return null;
-  const path = Array.isArray(issue.path) ? issue.path.filter((p) => typeof p === "string").join(".") : "";
+  const path = Array.isArray(issue.path)
+    ? issue.path.filter((p) => typeof p === "string").join(".")
+    : "";
   return path ? `${path}: ${issue.message}` : issue.message;
 }
 
 export function getApiErrorMessage(payload: unknown, fallback: string): string {
   if (typeof payload === "string" && payload.trim()) return payload;
   if (payload && typeof payload === "object") {
-    const { error, message } = payload as { error?: unknown; message?: unknown };
+    const { error, message } = payload as {
+      error?: unknown;
+      message?: unknown;
+    };
     if (typeof error === "string" && error.trim()) return error;
     if (Array.isArray(error)) {
       const parts = error
-        .map((issue) => (issue && typeof issue === "object" ? issueToString(issue as IssueLike) : null))
+        .map((issue) =>
+          issue && typeof issue === "object"
+            ? issueToString(issue as IssueLike)
+            : null,
+        )
         .filter((s): s is string => s !== null);
       if (parts.length) return parts.join("; ");
     }
@@ -35,17 +44,25 @@ export function getApiErrorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export function toErrorMessage(err: unknown, fallback = "Something went wrong"): string {
+export function toErrorMessage(
+  err: unknown,
+  fallback = "Something went wrong",
+): string {
   if (err instanceof Error && err.message) return err.message;
   return getApiErrorMessage(err, fallback);
 }
 
 /** Reads the JSON body of a failed response and returns a safe message. */
-export async function readApiError(res: Response, fallback: string): Promise<string> {
+export async function readApiError(
+  res: Response,
+  fallback: string,
+): Promise<string> {
   try {
     const body: unknown = await res.json();
     return getApiErrorMessage(body, fallback);
   } catch {
-    return res.statusText ? `${fallback} (${res.status} ${res.statusText})` : fallback;
+    return res.statusText
+      ? `${fallback} (${res.status} ${res.statusText})`
+      : fallback;
   }
 }

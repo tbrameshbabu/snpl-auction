@@ -33,7 +33,7 @@ export interface UseAuctionStateResult {
  */
 export function useAuctionState(
   tournamentId: string,
-  { pollIntervalMs = 0, enabled = true }: UseAuctionStateOptions = {}
+  { pollIntervalMs = 0, enabled = true }: UseAuctionStateOptions = {},
 ): UseAuctionStateResult {
   const [state, setState] = useState<AuctionState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,7 +85,10 @@ export function useAuctionState(
     if (!enabled) return;
     setLoading(true);
     void load();
-    const timer = pollIntervalMs > 0 ? setInterval(() => void load(), pollIntervalMs) : null;
+    const timer =
+      pollIntervalMs > 0
+        ? setInterval(() => void load(), pollIntervalMs)
+        : null;
     return () => {
       if (timer) clearInterval(timer);
       controllerRef.current?.abort();

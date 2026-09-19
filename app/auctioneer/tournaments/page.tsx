@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/use-auth'
-import { AppHeader } from '@/components/app-header'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { AppHeader } from "@/components/app-header";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Loader2,
   Plus,
@@ -18,101 +18,118 @@ import {
   Clock,
   Wallet,
   ArrowLeft,
-} from 'lucide-react'
+} from "lucide-react";
 
 interface Tournament {
-  id: string
-  title: string
-  description: string
-  auction_date: string
-  auction_time: string
-  status: string
-  num_teams: number
-  budget_per_team: number
-  created_at: string
+  id: string;
+  title: string;
+  description: string;
+  auction_date: string;
+  auction_time: string;
+  status: string;
+  num_teams: number;
+  budget_per_team: number;
+  created_at: string;
 }
 
 export default function AuctioneerTournamentsPage() {
-  const router = useRouter()
-  const { user, role, loading: authLoading } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [tournaments, setTournaments] = useState<Tournament[]>([])
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const router = useRouter();
+  const { user, role, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!authLoading && (!user || role !== 'auctioneer')) {
-      router.push('/auth/login')
+    if (!authLoading && (!user || role !== "auctioneer")) {
+      router.push("/auth/login");
     }
-  }, [user, role, authLoading, router])
+  }, [user, role, authLoading, router]);
 
   useEffect(() => {
     const fetchTournaments = async () => {
       try {
-        const response = await fetch('/api/auctioneers/tournaments')
-        const data = await response.json()
+        const response = await fetch("/api/auctioneers/tournaments");
+        const data = await response.json();
 
         if (!response.ok) {
-          setError(data.error || 'Failed to load tournaments')
-          setLoading(false)
-          return
+          setError(data.error || "Failed to load tournaments");
+          setLoading(false);
+          return;
         }
 
-        const fetched = data.tournaments || []
-        setTournaments(fetched)
-        if (fetched.length > 0) setExpandedId(fetched[0].id)
-        setLoading(false)
+        const fetched = data.tournaments || [];
+        setTournaments(fetched);
+        if (fetched.length > 0) setExpandedId(fetched[0].id);
+        setLoading(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-        setLoading(false)
+        setError(err instanceof Error ? err.message : "An error occurred");
+        setLoading(false);
       }
-    }
+    };
 
-    if (user && role === 'auctioneer') {
-      fetchTournaments()
+    if (user && role === "auctioneer") {
+      fetchTournaments();
     }
-  }, [user, role])
+  }, [user, role]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'published': return 'text-neon'
-      case 'live': return 'text-destructive'
-      case 'completed': return 'text-muted-foreground'
-      case 'draft': return 'text-gold'
-      default: return 'text-gold'
+      case "published":
+        return "text-neon";
+      case "live":
+        return "text-destructive";
+      case "completed":
+        return "text-muted-foreground";
+      case "draft":
+        return "text-gold";
+      default:
+        return "text-gold";
     }
-  }
+  };
 
   const getStatusBg = (status: string) => {
     switch (status) {
-      case 'published': return 'bg-neon/15'
-      case 'live': return 'bg-destructive/15'
-      case 'completed': return 'bg-secondary'
-      case 'draft': return 'bg-gold/15'
-      default: return 'bg-gold/15'
+      case "published":
+        return "bg-neon/15";
+      case "live":
+        return "bg-destructive/15";
+      case "completed":
+        return "bg-secondary";
+      case "draft":
+        return "bg-gold/15";
+      default:
+        return "bg-gold/15";
     }
-  }
+  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'published': return 'Open'
-      case 'live': return 'Live'
-      case 'completed': return 'Done'
-      case 'draft': return 'Draft'
-      default: return status
+      case "published":
+        return "Open";
+      case "live":
+        return "Live";
+      case "completed":
+        return "Done";
+      case "draft":
+        return "Draft";
+      default:
+        return status;
     }
-  }
+  };
 
-  const draftCount = tournaments.filter(t => t.status === 'draft').length
-  const publishedCount = tournaments.filter(t => t.status === 'published').length
-  const liveCount = tournaments.filter(t => t.status === 'live').length
+  const draftCount = tournaments.filter((t) => t.status === "draft").length;
+  const publishedCount = tournaments.filter(
+    (t) => t.status === "published",
+  ).length;
+  const liveCount = tournaments.filter((t) => t.status === "live").length;
 
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
-    )
+    );
   }
 
   return (
@@ -126,7 +143,7 @@ export default function AuctioneerTournamentsPage() {
           <div className="flex items-center gap-3 mb-2">
             <button
               type="button"
-              onClick={() => router.push('/auctioneer/dashboard')}
+              onClick={() => router.push("/auctioneer/dashboard")}
               className="h-10 w-10 rounded-lg glass flex items-center justify-center shrink-0"
             >
               <ArrowLeft className="h-4 w-4 text-muted-foreground" />
@@ -155,9 +172,7 @@ export default function AuctioneerTournamentsPage() {
           </div>
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
             <Star className="h-4 w-4 text-gold" />
-            <span className="text-lg font-bold text-gold">
-              {draftCount}
-            </span>
+            <span className="text-lg font-bold text-gold">{draftCount}</span>
             <span className="text-[10px] text-muted-foreground">Draft</span>
           </div>
           <div className="glass rounded-xl p-3 flex flex-col items-center gap-1">
@@ -181,7 +196,7 @@ export default function AuctioneerTournamentsPage() {
       <div className="px-5 mb-4">
         <Button
           size="lg"
-          onClick={() => router.push('/auctioneer/tournaments/create')}
+          onClick={() => router.push("/auctioneer/tournaments/create")}
           className="w-full bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
         >
           <Plus className="h-4 w-4 mr-1.5" />
@@ -200,9 +215,7 @@ export default function AuctioneerTournamentsPage() {
 
       {/* Section Heading */}
       <div className="px-5 mb-3">
-        <h2 className="text-lg font-bold text-foreground">
-          All Tournaments
-        </h2>
+        <h2 className="text-lg font-bold text-foreground">All Tournaments</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           Tap on a tournament to view details
         </p>
@@ -220,7 +233,7 @@ export default function AuctioneerTournamentsPage() {
               Create your first tournament to get started
             </p>
             <Button
-              onClick={() => router.push('/auctioneer/tournaments/create')}
+              onClick={() => router.push("/auctioneer/tournaments/create")}
               className="bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
             >
               <Plus className="h-4 w-4 mr-1.5" />
@@ -229,8 +242,8 @@ export default function AuctioneerTournamentsPage() {
           </div>
         ) : (
           tournaments.map((tournament) => {
-            const isExpanded = expandedId === tournament.id
-            const auctionDate = new Date(tournament.auction_date)
+            const isExpanded = expandedId === tournament.id;
+            const auctionDate = new Date(tournament.auction_date);
 
             return (
               <div
@@ -240,7 +253,9 @@ export default function AuctioneerTournamentsPage() {
                 {/* Card Header */}
                 <button
                   type="button"
-                  onClick={() => setExpandedId(isExpanded ? null : tournament.id)}
+                  onClick={() =>
+                    setExpandedId(isExpanded ? null : tournament.id)
+                  }
                   className="w-full p-4 flex items-center gap-3 text-left"
                 >
                   <div className="h-11 w-11 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
@@ -255,21 +270,26 @@ export default function AuctioneerTournamentsPage() {
                         className={cn(
                           "px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0",
                           getStatusBg(tournament.status),
-                          getStatusColor(tournament.status)
+                          getStatusColor(tournament.status),
                         )}
                       >
                         {getStatusLabel(tournament.status)}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      {tournament.auction_time && ` at ${tournament.auction_time}`}
+                      {auctionDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                      {tournament.auction_time &&
+                        ` at ${tournament.auction_time}`}
                     </p>
                   </div>
                   <ChevronRight
                     className={cn(
                       "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                      isExpanded && "rotate-90"
+                      isExpanded && "rotate-90",
                     )}
                   />
                 </button>
@@ -288,33 +308,48 @@ export default function AuctioneerTournamentsPage() {
                       <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-gold shrink-0" />
                         <div>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Date</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            Date
+                          </p>
                           <p className="text-sm font-bold text-foreground">
-                            {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {auctionDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}
                           </p>
                         </div>
                       </div>
                       <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
                         <Clock className="h-4 w-4 text-gold shrink-0" />
                         <div>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Time</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            Time
+                          </p>
                           <p className="text-sm font-bold text-foreground">
-                            {tournament.auction_time || '—'}
+                            {tournament.auction_time || "—"}
                           </p>
                         </div>
                       </div>
                       <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
                         <Users className="h-4 w-4 text-gold shrink-0" />
                         <div>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Teams</p>
-                          <p className="text-sm font-bold text-foreground">{tournament.num_teams}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            Teams
+                          </p>
+                          <p className="text-sm font-bold text-foreground">
+                            {tournament.num_teams}
+                          </p>
                         </div>
                       </div>
                       <div className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2">
                         <Wallet className="h-4 w-4 text-gold shrink-0" />
                         <div>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Budget</p>
-                          <p className="text-sm font-bold text-foreground">{tournament.budget_per_team} pts</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            Budget
+                          </p>
+                          <p className="text-sm font-bold text-foreground">
+                            {tournament.budget_per_team} pts
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -322,7 +357,9 @@ export default function AuctioneerTournamentsPage() {
                     {/* Manage Button */}
                     <Button
                       size="lg"
-                      onClick={() => router.push(`/auctioneer/tournaments/${tournament.id}`)}
+                      onClick={() =>
+                        router.push(`/auctioneer/tournaments/${tournament.id}`)
+                      }
                       className="w-full bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
                     >
                       <ChevronRight className="h-4 w-4 mr-1.5" />
@@ -331,10 +368,10 @@ export default function AuctioneerTournamentsPage() {
                   </div>
                 )}
               </div>
-            )
+            );
           })
         )}
       </section>
     </div>
-  )
+  );
 }
