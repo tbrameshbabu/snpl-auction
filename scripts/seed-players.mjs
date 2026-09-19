@@ -4,35 +4,14 @@
  * Creates 25 additional players (total 30 with existing 5)
  * for running a mock auction with 6 teams × 11 players.
  * 
- * Usage: node scripts/seed-players.mjs
- * All accounts use password: Test@123
+ * Usage: npm run seed:players   (see scripts/lib/seed-env.mjs for target/env rules)
+ * All accounts use SEED_PASSWORD (default Test@123).
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import { loadSeedEnv } from './lib/seed-env.mjs'
 
-// ─── Load env ───────────────
-function loadEnv() {
-  try {
-    const envContent = readFileSync(resolve(process.cwd(), '.env.local'), 'utf-8')
-    for (const line of envContent.split('\n')) {
-      const t = line.trim()
-      if (!t || t.startsWith('#')) continue
-      const eq = t.indexOf('=')
-      if (eq === -1) continue
-      const key = t.slice(0, eq).trim()
-      if (!process.env[key]) process.env[key] = t.slice(eq + 1).trim()
-    }
-  } catch (e) { console.error('.env.local not found:', e.message) }
-}
-loadEnv()
-
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-if (!URL || !KEY) { console.error('❌ Missing Supabase env vars'); process.exit(1) }
-
-const PASSWORD = 'Test@123'
+const { url: URL, anonKey: KEY, password: PASSWORD } = loadSeedEnv()
 
 async function signUpUser(email, password, role) {
   const supabase = createClient(URL, KEY)
@@ -94,7 +73,7 @@ async function seed() {
         continue
       }
 
-      const { email, ...profile } = p
+      const { email: _email, ...profile } = p
       const { error } = await supabase.from('players').insert({ user_id: user.id, ...profile }).select().single()
       if (error) { console.warn(`  ⚠ ${p.name}: ${error.message}`); continue }
 
@@ -106,7 +85,7 @@ async function seed() {
   }
 
   console.log(`\n🎉 Done! Created ${created} new players (total pool: ~30 players)`)
-  console.log('   All accounts use password: Test@123')
+  console.log(`   All accounts use password: ${PASSWORD}`)
   console.log('   Enough for 6 teams × 5 players each for a mock auction.\n')
 }
 
