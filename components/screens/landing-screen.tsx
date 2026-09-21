@@ -165,10 +165,10 @@ export function LandingScreen({ onNavigate: _onNavigate }: LandingScreenProps) {
           <div className="relative mx-auto grid max-w-6xl gap-10 px-5 pb-12 pt-10 md:grid-cols-2 md:items-center md:py-20">
             <div>
               <p className="eyebrow">Live sports auction console</p>
-              <h1 className="mt-4 text-4xl font-bold leading-tight text-balance text-foreground md:text-5xl">
+              <h1 lang="ta" className="mt-4 text-4xl font-bold leading-tight text-balance text-foreground md:text-5xl">
                 களமிறங்குறோம், <span className="text-gold">கலக்குறோம்!</span>
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground md:text-base">
+              <p lang="ta" className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground md:text-base">
                 கிரிக்கெட் ஹீரோக்களே, களத்தில் இறங்கத் தயாரா? சிறந்த வீரர்களை
                 ஏலம் எடுத்து, உங்கள் கனவு அணியை உருவாக்குங்கள், வெற்றியை
                 கொண்டாடுங்கள்!

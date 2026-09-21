@@ -71,7 +71,7 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)"],
+        sans: ["var(--font-geist-sans)", "var(--font-noto-tamil)", "sans-serif"],
         mono: ["var(--font-geist-mono)"],
       },
       keyframes: {

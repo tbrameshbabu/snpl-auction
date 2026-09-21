@@ -18,7 +18,7 @@ const detailsUpdateSchema = z.object({
   auction_time: z.string().min(1).optional(),
   num_teams: z.number().int().min(2).max(20).optional(),
   budget_per_team: z.number().int().min(100).max(10000).optional(),
-})
+}).strict().refine((body) => Object.keys(body).length > 0, 'Provide at least one tournament detail')
 
 const updateSchema = z.union([statusUpdateSchema, detailsUpdateSchema])
 
