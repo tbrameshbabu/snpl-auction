@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireRole, requireUser } from '@/lib/api/auth'
+import { getProfilePhone } from '@/lib/api/contacts'
 import { unwrap, unwrapRequired } from '@/lib/api/db'
 import { ApiError, handleRouteError } from '@/lib/api/errors'
 import { parseJsonBody } from '@/lib/api/request'
@@ -25,7 +26,10 @@ export async function POST(request: Request) {
         .single()
     )
 
-    return NextResponse.json({ player, message: 'Player registered successfully' })
+    return NextResponse.json({
+      player: { ...player, phone: await getProfilePhone(supabase, user.id, 'player') },
+      message: 'Player registered successfully',
+    })
   } catch (error) {
     return handleRouteError(error)
   }
@@ -41,7 +45,9 @@ export async function GET() {
       'Player profile not found'
     )
 
-    return NextResponse.json({ player })
+    return NextResponse.json({
+      player: { ...player, phone: await getProfilePhone(supabase, user.id, 'player') },
+    })
   } catch (error) {
     return handleRouteError(error)
   }

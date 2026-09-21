@@ -33,7 +33,7 @@ export async function GET(
         .from('player_interests')
         .select(
           `id, status,
-           players:player_id (id, name, role, batting_hand, bowling_hand, base_points, matches_played, runs_scored, wickets_taken, profile_image_url)`
+           players:player_id (id, user_id, name, role, batting_hand, bowling_hand, base_points, matches_played, runs_scored, wickets_taken, profile_image_url)`
         )
         .eq('tournament_id', tournamentId)
         .order('created_at', { ascending: false })
@@ -46,6 +46,21 @@ export async function GET(
     ])
 
     const orderMap = new Map(tournamentPlayers.map((tp) => [tp.player_id, tp.order_index ?? UNORDERED]))
+    const userIds = interests.flatMap((interest) =>
+      interest.players && ['interested', 'confirmed'].includes(interest.status ?? '')
+        ? [interest.players.user_id]
+        : []
+    )
+    const contacts = userIds.length
+      ? unwrapList(
+          await supabase
+            .from('profile_contacts')
+            .select('user_id, phone')
+            .eq('profile_kind', 'player')
+            .in('user_id', userIds)
+        )
+      : []
+    const phones = new Map(contacts.map((contact) => [contact.user_id, contact.phone]))
 
     const players = interests
       .flatMap((interest) =>
@@ -53,6 +68,9 @@ export async function GET(
           ? [
               {
                 ...interest.players,
+                phone: ['interested', 'confirmed'].includes(interest.status ?? '')
+                  ? phones.get(interest.players.user_id) ?? null
+                  : null,
                 interest_status: interest.status,
                 order_index: orderMap.get(interest.players.id) ?? UNORDERED,
               },

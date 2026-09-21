@@ -39,6 +39,7 @@ npm run dev        # http://localhost:3000
 | `npm run check`                           | `lint` → `typecheck` → `build` (what CI runs)                                                  |
 | `npm run seed` / `npm run seed:players`   | Development seed scripts against a **local** Supabase stack (see Seeding)                      |
 | `npm run db:check`                        | Integration check of RLS + auction RPCs (incl. concurrent bids/sales) through the local REST API |
+| `npm run contacts:check` | Local contact privacy integration checks; add `-- --api` to include authenticated routes against a running production build |
 
 Lint policy: `@typescript-eslint/no-explicit-any`, `ban-ts-comment` and unused vars/imports are
 errors (`_`-prefixed names are allowed). The React Compiler heuristics
@@ -131,6 +132,22 @@ Auctioneers are provisioned deliberately, not self-served. `POST /api/auth/signu
 role-based route access; Row Level Security policies and `SECURITY DEFINER` RPCs
 (`supabase/migrations/20260919000000_production_hardening.sql`, `…0001_auction_rpcs.sql`)
 enforce data access and the auction state machine.
+
+### Contact privacy
+
+Phone numbers live in `profile_contacts`, protected by RLS. Profile owners can read their
+own contact details. An auctioneer can read a player's phone only while that player has
+an `interested` or `confirmed` registration in a non-cancelled tournament they manage.
+Withdrawal revokes that relationship; adding a player to an auction queue alone grants
+no contact access. Team owners, anonymous visitors and unrelated auctioneers cannot read
+these contacts.
+
+The forward migration preserves existing player and auctioneer numbers separately.
+Profile `phone` columns remain as write-compatible inputs: a trigger stores the value
+privately and clears it before the public row is written. Public profile reads always
+return `phone: null`; authenticated profile APIs restore the owner's phone, and the
+auctioneer's tournament-player API adds permitted contacts. Public names and statistics
+remain readable.
 
 ## Deployment
 

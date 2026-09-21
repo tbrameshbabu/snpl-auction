@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireUser } from '@/lib/api/auth'
+import { getProfilePhone } from '@/lib/api/contacts'
 import { unwrap, unwrapRequired } from '@/lib/api/db'
 import { handleRouteError } from '@/lib/api/errors'
 
@@ -21,7 +22,14 @@ export async function GET() {
           ? unwrap(await supabase.from('auctioneers').select('*').eq('user_id', user.id).maybeSingle())
           : { role }
 
-    return NextResponse.json({ user, role, profile })
+    return NextResponse.json({
+      user,
+      role,
+      profile:
+        profile && (role === 'player' || role === 'auctioneer')
+          ? { ...profile, phone: await getProfilePhone(supabase, user.id, role) }
+          : profile,
+    })
   } catch (error) {
     return handleRouteError(error)
   }

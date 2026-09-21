@@ -286,6 +286,32 @@ export type Database = {
           },
         ]
       }
+      profile_contacts: {
+        Row: {
+          phone: string | null
+          profile_kind: string
+          user_id: string
+        }
+        Insert: {
+          phone?: string | null
+          profile_kind: string
+          user_id: string
+        }
+        Update: {
+          phone?: string | null
+          profile_kind?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_contacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           budget: number

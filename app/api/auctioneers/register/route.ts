@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireRole } from '@/lib/api/auth'
+import { getProfilePhone } from '@/lib/api/contacts'
 import { unwrap, unwrapRequired } from '@/lib/api/db'
 import { ApiError, handleRouteError } from '@/lib/api/errors'
 import { parseJsonBody } from '@/lib/api/request'
@@ -29,7 +30,10 @@ export async function POST(request: Request) {
         .single()
     )
 
-    return NextResponse.json({ auctioneer, message: 'Auctioneer registered successfully' })
+    return NextResponse.json({
+      auctioneer: { ...auctioneer, phone: await getProfilePhone(supabase, user.id, 'auctioneer') },
+      message: 'Auctioneer registered successfully',
+    })
   } catch (error) {
     return handleRouteError(error)
   }
