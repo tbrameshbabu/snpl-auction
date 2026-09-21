@@ -6,84 +6,22 @@
  * - 4 Team Owner users with teams registered to the tournament
  * - 5 Player users with player profiles
  * 
- * Usage: node scripts/seed.mjs
- * 
- * Requires: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
- * (reads from .env.local automatically)
+ * Usage: npm run seed   (see scripts/lib/seed-env.mjs for target/env rules)
+ *
+ * Requires: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY and
+ * SUPABASE_SERVICE_ROLE_KEY of a LOCAL Supabase stack (remote targets require
+ * SEED_ALLOW_REMOTE=1). Optional: SEED_PASSWORD (default Test@123).
  */
 
-import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import { loadSeedEnv } from './lib/seed-env.mjs'
+import { createSeedAdmin, ensureUser } from './lib/seed-users.mjs'
 
-// ─── Load env vars from .env.local ──────────────────────
-function loadEnv() {
-  try {
-    const envPath = resolve(process.cwd(), '.env.local')
-    const envContent = readFileSync(envPath, 'utf-8')
-    for (const line of envContent.split('\n')) {
-      const trimmed = line.trim()
-      if (!trimmed || trimmed.startsWith('#')) continue
-      const eqIdx = trimmed.indexOf('=')
-      if (eqIdx === -1) continue
-      const key = trimmed.slice(0, eqIdx).trim()
-      const value = trimmed.slice(eqIdx + 1).trim()
-      if (!process.env[key]) process.env[key] = value
-    }
-  } catch (e) {
-    console.error('Could not read .env.local:', e.message)
-  }
-}
+const { url, anonKey, serviceRoleKey, password: PASSWORD } = loadSeedEnv()
+const ctx = { admin: createSeedAdmin({ url, serviceRoleKey }), url, anonKey }
 
-loadEnv()
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('❌ Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local')
-  process.exit(1)
-}
-
-// ─── Helper: create a Supabase client and sign up a user ───
-async function signUpUser(email, password, role) {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
-  })
-
-  if (authError) {
-    // If user already exists, try to sign in
-    if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
-      console.log(`  ↳ User ${email} already exists, signing in...`)
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError) throw new Error(`Sign in failed for ${email}: ${signInError.message}`)
-      return { supabase, user: signInData.user }
-    }
-    throw new Error(`Sign up failed for ${email}: ${authError.message}`)
-  }
-
-  if (!authData.user) throw new Error(`No user returned for ${email}`)
-
-  // Insert into users table
-  const { error: userError } = await supabase.from('users').upsert({
-    id: authData.user.id,
-    email,
-    role,
-  }, { onConflict: 'id' })
-
-  if (userError) {
-    console.warn(`  ⚠ users table insert for ${email}:`, userError.message)
-  }
-
-  return { supabase, user: authData.user }
-}
+const signUpUser = (email, password, role) => ensureUser(ctx, email, password, role)
 
 // ─── SEED DATA ──────────────────────────────────────────
-const PASSWORD = 'Test@123'
-
 const AUCTIONEER = {
   email: 'auctioneer@snpl.com',
   name: 'Vikram Singh',
@@ -189,7 +127,7 @@ async function seed() {
     if (existingTeam) {
       console.log(`  ✅ Team already exists: ${ownerData.teamName}`)
     } else {
-      const { data: team, error } = await ownerClient.from('teams').insert({
+      const { error } = await ownerClient.from('teams').insert({
         tournament_id: tournamentId,
         owner_id: ownerUser.id,
         name: ownerData.teamName,
@@ -220,7 +158,7 @@ async function seed() {
       playerId = existingPlayer.id
       console.log(`  ✅ Player already exists: ${playerData.name}`)
     } else {
-      const { email, ...profileData } = playerData
+      const { email: _email, ...profileData } = playerData
       const { data: player, error } = await playerClient.from('players').insert({
         user_id: playerUser.id,
         ...profileData,
@@ -240,7 +178,7 @@ async function seed() {
   console.log('  🎉  SEED COMPLETE!')
   console.log('═'.repeat(55))
   console.log()
-  console.log('  📧 All accounts use password: Test@123')
+  console.log(`  📧 All accounts use password: ${PASSWORD}`)
   console.log()
   console.log('  Auctioneer:')
   console.log(`    ${AUCTIONEER.email}`)

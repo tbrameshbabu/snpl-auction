@@ -53,7 +53,7 @@ export function AppHeader() {
             <Zap className="h-4.5 w-4.5 text-gold" />
           </div>
           <span className="text-lg font-bold tracking-tight text-foreground">
-            SNBPL Auction
+            AuctionArena
           </span>
         </button>
 
@@ -67,8 +67,8 @@ export function AppHeader() {
               {role && (
                 <span
                   className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase hidden sm:inline-block",
-                    getRoleBadgeColor(role)
+                    "status-chip hidden sm:inline-flex",
+                    getRoleBadgeColor(role),
                   )}
                 >
                   {getRoleLabel(role)}

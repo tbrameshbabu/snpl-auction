@@ -1,64 +1,40 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { requireRole } from '@/lib/api/auth'
+import { getProfilePhone } from '@/lib/api/contacts'
+import { unwrap, unwrapRequired } from '@/lib/api/db'
+import { ApiError, handleRouteError } from '@/lib/api/errors'
+import { parseJsonBody } from '@/lib/api/request'
 import { auctioneerRegistrationSchema } from '@/lib/validations/auctioneer'
 
+// Completes the profile of a user whose role was already set to 'auctioneer'
+// by an operator; public signup cannot reach this role.
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
+    const user = await requireRole(supabase, 'auctioneer')
+    const body = await parseJsonBody(request, auctioneerRegistrationSchema)
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const existing = unwrap(
+      await supabase.from('auctioneers').select('id').eq('user_id', user.id).maybeSingle()
+    )
+    if (existing) {
+      throw new ApiError(409, 'Auctioneer profile already exists')
     }
 
-    // Verify user is an auctioneer
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const auctioneer = unwrapRequired(
+      await supabase
+        .from('auctioneers')
+        .insert({ user_id: user.id, ...body })
+        .select()
+        .single()
+    )
 
-    if (userData?.role !== 'auctioneer') {
-      return NextResponse.json({ error: 'Only auctioneers can register' }, { status: 403 })
-    }
-
-    const body = await request.json()
-    const validatedData = auctioneerRegistrationSchema.parse(body)
-
-    // Check if auctioneer profile already exists
-    const { data: existingAuctioneer } = await supabase
-      .from('auctioneers')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (existingAuctioneer) {
-      return NextResponse.json({ error: 'Auctioneer profile already exists' }, { status: 400 })
-    }
-
-    // Create auctioneer profile
-    const { data: auctioneer, error: auctioneerError } = await supabase
-      .from('auctioneers')
-      .insert({
-        user_id: user.id,
-        ...validatedData,
-      })
-      .select()
-      .single()
-
-    if (auctioneerError) {
-      return NextResponse.json({ error: auctioneerError.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ auctioneer, message: 'Auctioneer registered successfully' })
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({
+      auctioneer: { ...auctioneer, phone: await getProfilePhone(supabase, user.id, 'auctioneer') },
+      message: 'Auctioneer registered successfully',
+    })
+  } catch (error) {
+    return handleRouteError(error)
   }
 }

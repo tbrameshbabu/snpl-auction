@@ -4,52 +4,18 @@
  * Creates 25 additional players (total 30 with existing 5)
  * for running a mock auction with 6 teams × 11 players.
  * 
- * Usage: node scripts/seed-players.mjs
- * All accounts use password: Test@123
+ * Usage: npm run seed:players   (see scripts/lib/seed-env.mjs for target/env rules)
+ * All accounts use SEED_PASSWORD (default Test@123). Requires SUPABASE_SERVICE_ROLE_KEY
+ * of the local stack (see scripts/lib/seed-users.mjs).
  */
 
-import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import { loadSeedEnv } from './lib/seed-env.mjs'
+import { createSeedAdmin, ensureUser } from './lib/seed-users.mjs'
 
-// ─── Load env ───────────────
-function loadEnv() {
-  try {
-    const envContent = readFileSync(resolve(process.cwd(), '.env.local'), 'utf-8')
-    for (const line of envContent.split('\n')) {
-      const t = line.trim()
-      if (!t || t.startsWith('#')) continue
-      const eq = t.indexOf('=')
-      if (eq === -1) continue
-      const key = t.slice(0, eq).trim()
-      if (!process.env[key]) process.env[key] = t.slice(eq + 1).trim()
-    }
-  } catch (e) { console.error('.env.local not found:', e.message) }
-}
-loadEnv()
+const { url, anonKey, serviceRoleKey, password: PASSWORD } = loadSeedEnv()
+const ctx = { admin: createSeedAdmin({ url, serviceRoleKey }), url, anonKey }
 
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-if (!URL || !KEY) { console.error('❌ Missing Supabase env vars'); process.exit(1) }
-
-const PASSWORD = 'Test@123'
-
-async function signUpUser(email, password, role) {
-  const supabase = createClient(URL, KEY)
-  const { data, error } = await supabase.auth.signUp({ email, password })
-
-  if (error) {
-    if (error.message.includes('already') ) {
-      const { data: d2, error: e2 } = await supabase.auth.signInWithPassword({ email, password })
-      if (e2) throw new Error(`Sign in failed ${email}: ${e2.message}`)
-      return { supabase, user: d2.user }
-    }
-    throw new Error(`Sign up failed ${email}: ${error.message}`)
-  }
-
-  await supabase.from('users').upsert({ id: data.user.id, email, role }, { onConflict: 'id' })
-  return { supabase, user: data.user }
-}
+const signUpUser = (email, password, role) => ensureUser(ctx, email, password, role)
 
 // ─── 25 Additional Players ──────────────────────
 const PLAYERS = [
@@ -94,7 +60,7 @@ async function seed() {
         continue
       }
 
-      const { email, ...profile } = p
+      const { email: _email, ...profile } = p
       const { error } = await supabase.from('players').insert({ user_id: user.id, ...profile }).select().single()
       if (error) { console.warn(`  ⚠ ${p.name}: ${error.message}`); continue }
 
@@ -106,7 +72,7 @@ async function seed() {
   }
 
   console.log(`\n🎉 Done! Created ${created} new players (total pool: ~30 players)`)
-  console.log('   All accounts use password: Test@123')
+  console.log(`   All accounts use password: ${PASSWORD}`)
   console.log('   Enough for 6 teams × 5 players each for a mock auction.\n')
 }
 

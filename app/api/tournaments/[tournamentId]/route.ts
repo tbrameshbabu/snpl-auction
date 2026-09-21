@@ -1,41 +1,28 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { unwrapRequired } from '@/lib/api/db'
+import { handleRouteError } from '@/lib/api/errors'
+import { parseUuid } from '@/lib/api/request'
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ tournamentId: string }> }
 ) {
-  const { tournamentId } = await params
-  
   try {
+    const tournamentId = parseUuid((await params).tournamentId, 'tournament id')
     const supabase = await createClient()
 
-    // Get tournament with auctioneer info (public access)
-    const { data: tournament, error: tournamentError } = await supabase
-      .from('tournaments')
-      .select(`
-        *,
-        auctioneers:auctioneer_id (
-          name,
-          organization
-        )
-      `)
-      .eq('id', tournamentId)
-      .single()
-
-    if (tournamentError || !tournament) {
-      return NextResponse.json({ 
-        error: 'Tournament not found',
-        details: tournamentError?.message 
-      }, { status: 404 })
-    }
+    const tournament = unwrapRequired(
+      await supabase
+        .from('tournaments')
+        .select('*, auctioneers:auctioneer_id (name, organization)')
+        .eq('id', tournamentId)
+        .maybeSingle(),
+      'Tournament not found'
+    )
 
     return NextResponse.json({ tournament })
-  } catch (error: any) {
-    console.error('Error fetching tournament:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: error.message 
-    }, { status: 500 })
+  } catch (error) {
+    return handleRouteError(error)
   }
 }

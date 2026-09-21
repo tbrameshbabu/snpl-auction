@@ -74,11 +74,16 @@ interface TeamLeaderboard {
 
 /* ─────────────────── Component ─────────────────── */
 
-export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) {
+export function ResultsScreen({
+  tournamentId,
+  onNavigate,
+}: ResultsScreenProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [leaderboard, setLeaderboard] = useState<TeamLeaderboard[]>([]);
-  const [activeTab, setActiveTab] = useState<"leaderboard" | "all_teams">("leaderboard");
+  const [activeTab, setActiveTab] = useState<"leaderboard" | "all_teams">(
+    "leaderboard",
+  );
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [totalSold, setTotalSold] = useState(0);
   const [totalUnsold, setTotalUnsold] = useState(0);
@@ -117,7 +122,7 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
           budget: t.budget ?? 0,
           playersCount: 0,
           roster: [],
-          logo_url: (t as any).logo_url || null,
+          logo_url: t.logo_url || null,
           mvpName: "—",
           mvpCost: 0,
         });
@@ -128,8 +133,11 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
         if (sale.teams) {
           const team = teamMap.get(sale.teams.id);
           if (team) {
-            const playerName = sale.tournament_players?.players?.name || "Unknown";
-            const playerRole = sale.tournament_players?.players?.role?.replace("_", " ") || "Player";
+            const playerName =
+              sale.tournament_players?.players?.name || "Unknown";
+            const playerRole =
+              sale.tournament_players?.players?.role?.replace("_", " ") ||
+              "Player";
             const cost = sale.final_price || 0;
 
             team.roster.push({ name: playerName, role: playerRole, cost });
@@ -150,8 +158,8 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
 
       setLeaderboard(sorted);
       setLoading(false);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
       setLoading(false);
     }
   }, [tournamentId]);
@@ -215,7 +223,7 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
               "flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5",
               activeTab === "leaderboard"
                 ? "bg-gold text-background"
-                : "text-muted-foreground"
+                : "text-muted-foreground",
             )}
           >
             <Trophy className="h-3.5 w-3.5" />
@@ -228,7 +236,7 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
               "flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5",
               activeTab === "all_teams"
                 ? "bg-gold text-background"
-                : "text-muted-foreground"
+                : "text-muted-foreground",
             )}
           >
             <Users className="h-3.5 w-3.5" />
@@ -256,7 +264,7 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
                         "h-12 w-12 rounded-full flex items-center justify-center text-sm font-bold mb-2",
                         isFirst
                           ? "bg-gold/20 text-gold ring-2 ring-gold"
-                          : "bg-secondary text-muted-foreground"
+                          : "bg-secondary text-muted-foreground",
                       )}
                       style={
                         !isFirst
@@ -290,13 +298,13 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
                         isFirst
                           ? "bg-gold/20 border border-gold/30"
                           : "bg-secondary/80",
-                        heights[i]
+                        heights[i],
                       )}
                     >
                       <span
                         className={cn(
                           "text-lg font-bold",
-                          isFirst ? "text-gold" : "text-muted-foreground"
+                          isFirst ? "text-gold" : "text-muted-foreground",
                         )}
                       >
                         #{podiumOrder[i]}
@@ -315,16 +323,14 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
                 <button
                   type="button"
                   onClick={() =>
-                    setExpandedTeam(
-                      expandedTeam === team.id ? null : team.id
-                    )
+                    setExpandedTeam(expandedTeam === team.id ? null : team.id)
                   }
                   className="w-full p-3.5 flex items-center gap-3 text-left"
                 >
                   <span
                     className={cn(
                       "text-sm font-bold w-6 text-center",
-                      team.rank === 1 ? "text-gold" : "text-muted-foreground"
+                      team.rank === 1 ? "text-gold" : "text-muted-foreground",
                     )}
                   >
                     {team.rank}
@@ -456,9 +462,7 @@ export function ResultsScreen({ tournamentId, onNavigate }: ResultsScreenProps) 
                 <button
                   type="button"
                   onClick={() =>
-                    setExpandedTeam(
-                      expandedTeam === team.id ? null : team.id
-                    )
+                    setExpandedTeam(expandedTeam === team.id ? null : team.id)
                   }
                   className="w-full p-4 flex items-center gap-3 text-left"
                 >

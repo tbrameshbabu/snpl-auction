@@ -1,75 +1,34 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api/auth'
+import { unwrapList } from '@/lib/api/db'
+import { handleRouteError } from '@/lib/api/errors'
 
 export async function GET() {
   try {
     const supabase = await createClient()
+    const user = await requireUser(supabase)
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get all teams owned by this user
-    const { data: teams, error: teamsError } = await supabase
-      .from('teams')
-      .select(`
-        id,
-        name,
-        short_name,
-        color,
-        budget,
-        spent,
-        tournament_id,
-        tournaments:tournament_id (
-          id,
-          title,
-          auction_date,
-          auction_time,
-          status
+    const teams = unwrapList(
+      await supabase
+        .from('teams')
+        .select(
+          `id, name, short_name, color, budget, spent, tournament_id,
+           tournaments!inner (id, title, auction_date, auction_time, status),
+           player_sales!player_sales_team_id_fkey (status)`
         )
-      `)
-      .eq('owner_id', user.id)
+        .eq('owner_id', user.id)
+        .eq('tournaments.status', 'completed')
+    )
 
-    if (teamsError) {
-      return NextResponse.json({ error: teamsError.message }, { status: 500 })
-    }
+    const tournaments = teams.map(({ tournaments, player_sales, ...team }) => ({
+      tournament: tournaments,
+      team,
+      players_bought: player_sales.filter((sale) => sale.status === 'sold').length,
+    }))
 
-    // Filter to only completed tournaments
-    const completedTournaments = (teams || [])
-      .filter((t: any) => t.tournaments?.status === 'completed')
-      .map((t: any) => ({
-        tournament: t.tournaments,
-        team: {
-          id: t.id,
-          name: t.name,
-          short_name: t.short_name,
-          color: t.color,
-          budget: t.budget,
-          spent: t.spent,
-        },
-        players_bought: 0,
-      }))
-
-    // For each, get player count from player_sales
-    for (const ct of completedTournaments) {
-      const { count } = await supabase
-        .from('player_sales')
-        .select('id', { count: 'exact', head: true })
-        .eq('tournament_id', ct.tournament.id)
-        .eq('team_id', ct.team.id)
-        .eq('status', 'sold')
-
-      ct.players_bought = count || 0
-    }
-
-    return NextResponse.json({ tournaments: completedTournaments })
-  } catch (error: any) {
-    console.error('Error fetching completed tournaments:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ tournaments })
+  } catch (error) {
+    return handleRouteError(error)
   }
 }

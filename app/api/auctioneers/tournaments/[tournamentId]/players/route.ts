@@ -1,162 +1,148 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+import { requireOwnedTournament } from '@/lib/api/auth'
+import { unwrap, unwrapList } from '@/lib/api/db'
+import { ApiError, handleRouteError } from '@/lib/api/errors'
+import { parseJsonBody, parseUuid } from '@/lib/api/request'
+
+const UNORDERED = 999
+
+const playerOrderSchema = z.object({
+  playerOrder: z
+    .array(
+      z.object({
+        player_id: z.string().uuid(),
+        order_index: z.number().int().min(0),
+      })
+    )
+    .max(500),
+})
 
 export async function GET(
-  request: Request,
-  context: { params: Promise<{ tournamentId: string }> }
+  _request: Request,
+  { params }: { params: Promise<{ tournamentId: string }> }
 ) {
   try {
-    const { tournamentId } = await context.params
+    const tournamentId = parseUuid((await params).tournamentId, 'tournament id')
     const supabase = await createClient()
+    await requireOwnedTournament(supabase, tournamentId)
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Verify user is an auctioneer and owns this tournament
-    const { data: tournament } = await supabase
-      .from('tournaments')
-      .select('auctioneer_id')
-      .eq('id', tournamentId)
-      .single()
-
-    if (!tournament) {
-      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
-    }
-
-    // Get players who have shown interest in this tournament
-    const { data: interests, error } = await supabase
-      .from('player_interests')
-      .select(`
-        id,
-        status,
-        players:player_id (
-          id,
-          name,
-          role,
-          batting_hand,
-          bowling_hand,
-          base_points,
-          matches_played,
-          runs_scored,
-          wickets_taken,
-          profile_image_url
+    const [interests, tournamentPlayers] = await Promise.all([
+      supabase
+        .from('player_interests')
+        .select(
+          `id, status,
+           players:player_id (id, user_id, name, role, batting_hand, bowling_hand, base_points, matches_played, runs_scored, wickets_taken, profile_image_url)`
         )
-      `)
-      .eq('tournament_id', tournamentId)
-      .order('created_at', { ascending: false })
+        .eq('tournament_id', tournamentId)
+        .order('created_at', { ascending: false })
+        .then(unwrapList),
+      supabase
+        .from('tournament_players')
+        .select('player_id, order_index')
+        .eq('tournament_id', tournamentId)
+        .then(unwrapList),
+    ])
 
-    if (error) {
-      console.error('Error fetching players:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    const orderMap = new Map(tournamentPlayers.map((tp) => [tp.player_id, tp.order_index ?? UNORDERED]))
+    const userIds = interests.flatMap((interest) =>
+      interest.players && ['interested', 'confirmed'].includes(interest.status ?? '')
+        ? [interest.players.user_id]
+        : []
+    )
+    const contacts = userIds.length
+      ? unwrapList(
+          await supabase
+            .from('profile_contacts')
+            .select('user_id, phone')
+            .eq('profile_kind', 'player')
+            .in('user_id', userIds)
+        )
+      : []
+    const phones = new Map(contacts.map((contact) => [contact.user_id, contact.phone]))
 
-    // Get tournament_players for order_index
-    const { data: tournamentPlayers } = await supabase
-      .from('tournament_players')
-      .select('player_id, order_index')
-      .eq('tournament_id', tournamentId)
-
-    const orderMap = new Map<string, number>()
-    tournamentPlayers?.forEach((tp: any) => {
-      orderMap.set(tp.player_id, tp.order_index ?? 999)
-    })
-
-    // Transform the data to flatten player info
-    const players = interests?.map(interest => ({
-      ...interest.players,
-      interest_status: interest.status,
-      order_index: orderMap.get((interest.players as any)?.id) ?? 999,
-    })) || []
-
-    // Sort by order_index
-    players.sort((a, b) => (a.order_index ?? 999) - (b.order_index ?? 999))
+    const players = interests
+      .flatMap((interest) =>
+        interest.players
+          ? [
+              {
+                ...interest.players,
+                phone: ['interested', 'confirmed'].includes(interest.status ?? '')
+                  ? phones.get(interest.players.user_id) ?? null
+                  : null,
+                interest_status: interest.status,
+                order_index: orderMap.get(interest.players.id) ?? UNORDERED,
+              },
+            ]
+          : []
+      )
+      .sort((a, b) => a.order_index - b.order_index)
 
     return NextResponse.json({ players })
-  } catch (error: any) {
-    console.error('Error in players API:', error)
-    return NextResponse.json({
-      error: 'Internal server error',
-      details: error.message
-    }, { status: 500 })
+  } catch (error) {
+    return handleRouteError(error)
   }
 }
 
-// PUT: Save player order
+// Saves the auction queue order. Rows are created for interested players that
+// are not queued yet; start_auction keeps them and appends the rest.
 export async function PUT(
   request: Request,
-  context: { params: Promise<{ tournamentId: string }> }
+  { params }: { params: Promise<{ tournamentId: string }> }
 ) {
   try {
-    const { tournamentId } = await context.params
+    const tournamentId = parseUuid((await params).tournamentId, 'tournament id')
     const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Verify auctioneer owns this tournament
-    const { data: auctioneer } = await supabase
-      .from('auctioneers')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (!auctioneer) {
-      return NextResponse.json({ error: 'Not an auctioneer' }, { status: 403 })
-    }
-
-    const { data: tournament } = await supabase
-      .from('tournaments')
-      .select('id, auctioneer_id, status')
-      .eq('id', tournamentId)
-      .single()
-
-    if (!tournament || tournament.auctioneer_id !== auctioneer.id) {
-      return NextResponse.json({ error: 'Tournament not found or not owned' }, { status: 404 })
-    }
-
+    const { tournament } = await requireOwnedTournament(supabase, tournamentId)
     if (tournament.status === 'live' || tournament.status === 'completed') {
-      return NextResponse.json({ error: 'Cannot reorder during or after auction' }, { status: 400 })
+      throw new ApiError(409, 'Cannot reorder during or after auction')
+    }
+    const { playerOrder } = await parseJsonBody(request, playerOrderSchema)
+    if (playerOrder.length === 0) {
+      return NextResponse.json({ success: true })
     }
 
-    const body = await request.json()
-    const { playerOrder } = body // Array of { player_id, order_index }
-
-    if (!Array.isArray(playerOrder)) {
-      return NextResponse.json({ error: 'Invalid playerOrder' }, { status: 400 })
-    }
-
-    // Use admin client for batch update
-    const { createAdminClient } = await import('@/lib/supabase/admin')
-    const admin = createAdminClient()
-
-    // Update each tournament_player's order_index
-    for (const item of playerOrder) {
-      const { error: updateErr } = await admin
-        .from('tournament_players')
-        .update({ order_index: item.order_index })
+    const interested = unwrapList(
+      await supabase
+        .from('player_interests')
+        .select('player_id, players:player_id (base_points)')
         .eq('tournament_id', tournamentId)
-        .eq('player_id', item.player_id)
+        .in('status', ['interested', 'confirmed'])
+        .in(
+          'player_id',
+          playerOrder.map((item) => item.player_id)
+        )
+    )
+    const basePoints = new Map(interested.map((row) => [row.player_id, row.players?.base_points ?? 100]))
 
-      if (updateErr) {
-        console.error(`Failed to update order for ${item.player_id}:`, updateErr)
-      }
+    const rows = playerOrder.flatMap((item) => {
+      const base = basePoints.get(item.player_id)
+      return base === undefined
+        ? []
+        : [
+            {
+              tournament_id: tournamentId,
+              player_id: item.player_id,
+              base_price: Math.max(base, 1),
+              order_index: item.order_index,
+              status: 'pending',
+            },
+          ]
+    })
+
+    if (rows.length !== playerOrder.length) {
+      throw new ApiError(400, 'playerOrder contains players not registered for this tournament')
     }
+
+    unwrap(
+      await supabase
+        .from('tournament_players')
+        .upsert(rows, { onConflict: 'tournament_id,player_id', ignoreDuplicates: false })
+    )
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    console.error('Error saving player order:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error) {
+    return handleRouteError(error)
   }
 }

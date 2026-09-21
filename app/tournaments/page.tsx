@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { AppHeader } from '@/components/app-header'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Loader2,
   Trophy,
@@ -16,93 +16,110 @@ import {
   Zap,
   Star,
   UserCheck,
-} from 'lucide-react'
+} from "lucide-react";
 
 interface Tournament {
-  id: string
-  title: string
-  description: string
-  auction_date: string
-  auction_time: string
-  num_teams: number
-  num_players_per_team: number
-  budget_per_team: number
-  status: string
+  id: string;
+  title: string;
+  description: string;
+  auction_date: string;
+  auction_time: string;
+  num_teams: number;
+  num_players_per_team: number;
+  budget_per_team: number;
+  status: string;
   auctioneers?: {
-    name: string
-    organization: string
-  }
+    name: string;
+    organization: string;
+  };
 }
 
 export default function TournamentsPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [tournaments, setTournaments] = useState<Tournament[]>([])
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchTournaments = async () => {
       try {
-        const response = await fetch('/api/auctioneers/tournaments')
-        const data = await response.json()
+        const response = await fetch("/api/auctioneers/tournaments");
+        const data = await response.json();
 
         if (!response.ok) {
-          setError(data.error || 'Failed to load tournaments')
-          setLoading(false)
-          return
+          setError(data.error || "Failed to load tournaments");
+          setLoading(false);
+          return;
         }
 
-        setTournaments(data.tournaments || [])
-        setLoading(false)
-      } catch (err: any) {
-        setError(err.message || 'An error occurred')
-        setLoading(false)
+        setTournaments(data.tournaments || []);
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        setLoading(false);
       }
-    }
+    };
 
-    fetchTournaments()
-  }, [])
+    fetchTournaments();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'published': return 'text-neon'
-      case 'live': return 'text-destructive'
-      case 'completed': return 'text-muted-foreground'
-      case 'draft': return 'text-gold'
-      default: return 'text-muted-foreground'
+      case "published":
+        return "text-neon";
+      case "live":
+        return "text-destructive";
+      case "completed":
+        return "text-muted-foreground";
+      case "draft":
+        return "text-gold";
+      default:
+        return "text-muted-foreground";
     }
-  }
+  };
 
   const getStatusBg = (status: string) => {
     switch (status) {
-      case 'published': return 'bg-neon/15'
-      case 'live': return 'bg-destructive/15'
-      case 'completed': return 'bg-secondary'
-      case 'draft': return 'bg-gold/15'
-      default: return 'bg-secondary'
+      case "published":
+        return "bg-neon/15";
+      case "live":
+        return "bg-destructive/15";
+      case "completed":
+        return "bg-secondary";
+      case "draft":
+        return "bg-gold/15";
+      default:
+        return "bg-secondary";
     }
-  }
+  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'published': return 'Open'
-      case 'live': return 'Live'
-      case 'completed': return 'Completed'
-      case 'draft': return 'Draft'
-      default: return status
+      case "published":
+        return "Open";
+      case "live":
+        return "Live";
+      case "completed":
+        return "Completed";
+      case "draft":
+        return "Draft";
+      default:
+        return status;
     }
-  }
+  };
 
-  const publishedCount = tournaments.filter(t => t.status === 'published').length
-  const liveCount = tournaments.filter(t => t.status === 'live').length
+  const publishedCount = tournaments.filter(
+    (t) => t.status === "published",
+  ).length;
+  const liveCount = tournaments.filter((t) => t.status === "live").length;
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
-    )
+    );
   }
 
   return (
@@ -118,9 +135,7 @@ export default function TournamentsPage() {
               <Trophy className="h-6 w-6 text-gold" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">
-                Tournaments
-              </h1>
+              <h1 className="text-xl font-bold text-foreground">Tournaments</h1>
               <p className="text-xs text-muted-foreground">
                 Browse and join upcoming cricket auctions
               </p>
@@ -189,8 +204,8 @@ export default function TournamentsPage() {
           </div>
         ) : (
           tournaments.map((tournament) => {
-            const isExpanded = expandedId === tournament.id
-            const auctionDate = new Date(tournament.auction_date)
+            const isExpanded = expandedId === tournament.id;
+            const auctionDate = new Date(tournament.auction_date);
 
             return (
               <div
@@ -200,7 +215,9 @@ export default function TournamentsPage() {
                 {/* Card Header */}
                 <button
                   type="button"
-                  onClick={() => setExpandedId(isExpanded ? null : tournament.id)}
+                  onClick={() =>
+                    setExpandedId(isExpanded ? null : tournament.id)
+                  }
                   className="w-full p-4 flex items-center gap-3 text-left"
                 >
                   <div className="h-11 w-11 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
@@ -215,20 +232,25 @@ export default function TournamentsPage() {
                         className={cn(
                           "px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0",
                           getStatusBg(tournament.status),
-                          getStatusColor(tournament.status)
+                          getStatusColor(tournament.status),
                         )}
                       >
                         {getStatusLabel(tournament.status)}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {tournament.auction_time}
+                      {auctionDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}{" "}
+                      at {tournament.auction_time}
                     </p>
                   </div>
                   <ChevronRight
                     className={cn(
                       "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                      isExpanded && "rotate-90"
+                      isExpanded && "rotate-90",
                     )}
                   />
                 </button>
@@ -252,7 +274,10 @@ export default function TournamentsPage() {
                             Date
                           </p>
                           <p className="text-sm font-bold text-foreground">
-                            {auctionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {auctionDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}
                           </p>
                         </div>
                       </div>
@@ -316,7 +341,9 @@ export default function TournamentsPage() {
                     {/* View Details Button */}
                     <Button
                       size="lg"
-                      onClick={() => router.push(`/tournaments/${tournament.id}`)}
+                      onClick={() =>
+                        router.push(`/tournaments/${tournament.id}`)
+                      }
                       className="w-full bg-gold/15 text-gold hover:bg-gold/25 font-semibold"
                     >
                       <ChevronRight className="h-4 w-4 mr-1.5" />
@@ -325,7 +352,7 @@ export default function TournamentsPage() {
                   </div>
                 )}
               </div>
-            )
+            );
           })
         )}
       </section>
@@ -339,14 +366,14 @@ export default function TournamentsPage() {
               How Auctions Work
             </h4>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Browse available tournaments and view their details. Players can show interest
-              to be included in the auction pool. Team owners can register their teams to
-              participate in the bidding. Once the auctioneer starts the auction, the
-              excitement begins!
+              Browse available tournaments and view their details. Players can
+              show interest to be included in the auction pool. Team owners can
+              register their teams to participate in the bidding. Once the
+              auctioneer starts the auction, the excitement begins!
             </p>
           </div>
         </div>
       </section>
     </div>
-  )
+  );
 }
